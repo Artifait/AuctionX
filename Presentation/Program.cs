@@ -1,31 +1,34 @@
-using AucX.Application.Interfaces;
+
+using AucX.Application;
 using AucX.Application.Services;
-using AucX.Domain.Interfaces;
 using AucX.Infrastructure;
 using AucX.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Регистрируем контекст базы данных
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Регистрация сервисов
+builder.Services.AddScoped<IAccountService, AccountService>(); // Реализация AccountService должна быть создана в Application
+builder.Services.AddSingleton<IAccountRepository, InMemoryAccountRepository>();
 
-// Регистрируем репозитории и сервисы
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
+// Добавление аутентификации с использованием cookie
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/api/account/login";
+        options.LogoutPath = "/api/account/logout";
+    });
 
-// Регистрируем MVC
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
-// Конфигурация middleware
-app.UseStaticFiles();
-app.UseRouting();
+// Добавление мидлварей аутентификации и авторизации
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapControllers();
 
 app.Run();
