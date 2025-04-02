@@ -1,0 +1,30 @@
+﻿@model AucX.Domain.Entities.AuctionLot
+@{
+    ViewData["Title"] = "Детали лота";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h2>@Model.GameItem.Name</h2>
+<div class="row">
+    <div class="col-md-6">
+        <img src="@Model.GameItem.ImageUrl" class="img-fluid" alt="@Model.GameItem.Name" />
+    </div>
+    <div class="col-md-6">
+        <p>@Model.GameItem.Description</p>
+        <p><strong>Текущая ставка:</strong> @Model.CurrentBid.ToString("C")</p>
+        <p><strong>Выкуп:</strong> @Model.BuyOutPrice.ToString("C")</p>
+        <p><strong>Мин. повышение:</strong> @Model.MinBidIncrement.ToString("C")</p>
+        <p><strong>До завершения торгов:</strong> @(Model.EndTime - DateTime.Now).ToString("dd\.hh\:mm\:ss")</p>
+        
+        <hr />
+        <h4>Сделать ставку</h4>
+        <form asp-action="AddBid" method="post">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <div class="form-group">
+                <label for="bidAmount">Сумма ставки</label>
+                <input type="number" step="0.01" min="@(Model.CurrentBid + Model.MinBidIncrement)" class="form-control" id="bidAmount" name="bidAmount" required />
+            </div>
+            <button type="submit" class="btn btn-success mt-2">Сделать ставку</button>
+        </form>
+    </div>
+</div>

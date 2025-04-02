@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
-namespace AucX.Infrastructure.Persistence;
+namespace AucX.DataAccess.Context;
 
 public class AppDbContext : IdentityDbContext<AppUser>
 {
@@ -11,5 +11,6 @@ public class AppDbContext : IdentityDbContext<AppUser>
     {
     }
     
-    // Можно добавить DbSet для других сущностей
+    public DbSet<GameItem> GameItems { get; set; }
+    public DbSet<AuctionLot> AuctionLots { get; set; }
 }
