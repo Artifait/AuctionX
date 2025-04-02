@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using AucX.Presentation.Models;
+using AucX.Models;
 
-namespace AucX.Presentation.Controllers;
+namespace AucX.Controllers;
 
 public class HomeController : Controller
 {

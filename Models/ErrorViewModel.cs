@@ -1,4 +1,4 @@
-namespace AucX.Presentation.Models;
+namespace AucX.Models;
 
 public class ErrorViewModel
 {
