@@ -1,4 +1,5 @@
 using AucX.DataAccess.Context;
+using AucX.DataAccess.Repositories;
 using AucX.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,8 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
     })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
+
+builder.Services.AddTransient<IAuctionLotRepository, AuctionLotRepository>();
 
 builder.Services.AddControllersWithViews();
 
