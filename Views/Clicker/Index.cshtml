@@ -1,0 +1,44 @@
+﻿@{
+    ViewData["Title"] = "Кликер";
+}
+
+<h2>Кликер</h2>
+
+<div class="card">
+    <div class="card-body">
+        <p>Ваш текущий баланс: <span id="balance">0</span></p>
+        <form id="clickForm" method="post" asp-action="Click" asp-controller="Clicker">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-primary">Кликни меня!</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Перехватываем отправку формы, чтобы выполнить AJAX-запрос
+        document.getElementById("clickForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const response = await fetch('@Url.Action("Click", "Clicker")', {
+                method: 'POST',
+                body: formData
+            });
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('balance').textContent = data.balance;
+            }
+        });
+
+        // Функция для обновления баланса при загрузке страницы
+        async function updateBalance() {
+            const response = await fetch('@Url.Action("GetBalance", "Clicker")');
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('balance').textContent = data.balance;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", updateBalance);
+    </script>
+}

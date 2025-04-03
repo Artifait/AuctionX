@@ -3,6 +3,7 @@ using System;
 using AucX.DataAccess.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AucX.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250403093521_AddBalance")]
+    partial class AddBalance
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.3");
@@ -88,13 +91,45 @@ namespace AucX.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("AucX.Domain.Entities.ColorShop", b =>
+            modelBuilder.Entity("AucX.Domain.Entities.AuctionLot", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("ColorCode")
+                    b.Property<decimal>("BuyOutPrice")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CurrentBid")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GameItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("MinBidIncrement")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameItemId");
+
+                    b.ToTable("AuctionLots");
+                });
+
+            modelBuilder.Entity("AucX.Domain.Entities.GameItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -102,110 +137,9 @@ namespace AucX.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("Price")
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
 
-                    b.ToTable("ColorShops");
-                });
-
-            modelBuilder.Entity("AucX.Domain.Entities.PixelArt", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Height")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OwnerId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Width")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OwnerId");
-
-                    b.ToTable("PixelArts");
-                });
-
-            modelBuilder.Entity("AucX.Domain.Entities.PixelColor", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ColorCode")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("PixelArtId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PixelArtId");
-
-                    b.ToTable("PixelColors");
-                });
-
-            modelBuilder.Entity("AucX.Domain.Entities.UserCanvasUpgrade", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("MaxHeight")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("MaxWidth")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserCanvasUpgrades");
-                });
-
-            modelBuilder.Entity("AucX.Domain.Entities.UserColorPurchase", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("ColorShopId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("DatePurchased")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ColorShopId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserColorPurchases");
+                    b.ToTable("GameItems");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -336,52 +270,15 @@ namespace AucX.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("AucX.Domain.Entities.PixelArt", b =>
+            modelBuilder.Entity("AucX.Domain.Entities.AuctionLot", b =>
                 {
-                    b.HasOne("AucX.Domain.Entities.AppUser", "Owner")
+                    b.HasOne("AucX.Domain.Entities.GameItem", "GameItem")
                         .WithMany()
-                        .HasForeignKey("OwnerId")
+                        .HasForeignKey("GameItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Owner");
-                });
-
-            modelBuilder.Entity("AucX.Domain.Entities.PixelColor", b =>
-                {
-                    b.HasOne("AucX.Domain.Entities.PixelArt", null)
-                        .WithMany("Colors")
-                        .HasForeignKey("PixelArtId");
-                });
-
-            modelBuilder.Entity("AucX.Domain.Entities.UserCanvasUpgrade", b =>
-                {
-                    b.HasOne("AucX.Domain.Entities.AppUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("AucX.Domain.Entities.UserColorPurchase", b =>
-                {
-                    b.HasOne("AucX.Domain.Entities.ColorShop", "ColorShop")
-                        .WithMany()
-                        .HasForeignKey("ColorShopId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("AucX.Domain.Entities.AppUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ColorShop");
-
-                    b.Navigation("User");
+                    b.Navigation("GameItem");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -433,11 +330,6 @@ namespace AucX.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("AucX.Domain.Entities.PixelArt", b =>
-                {
-                    b.Navigation("Colors");
                 });
 #pragma warning restore 612, 618
         }

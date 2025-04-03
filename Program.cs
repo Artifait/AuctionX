@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
+
 // Конфигурация подключения к базе данных (например, SQL Server)
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -23,7 +25,10 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-builder.Services.AddTransient<IAuctionLotRepository, AuctionLotRepository>();
+//builder.Services.AddTransient<IAuctionLotRepository, AuctionLotRepository>();
+builder.Services.AddTransient<IUserCanvasUpgradeService, UserCanvasUpgradeService>();
+builder.Services.AddTransient<IPixelArtRepository, PixelArtRepository>();
+builder.Services.AddTransient<IColorShopRepository, ColorShopRepository>();
 
 builder.Services.AddControllersWithViews();
 

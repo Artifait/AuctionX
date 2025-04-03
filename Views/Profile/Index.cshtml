@@ -1,0 +1,45 @@
+﻿@model AucX.Domain.Entities.AppUser
+
+@{
+    ViewData["Title"] = "Профиль";
+    var canvasUpgrade = ViewBag.CanvasUpgrade as AucX.Domain.Entities.UserCanvasUpgrade;
+}
+
+<h2>Профиль пользователя</h2>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <p><strong>ФИО:</strong> @Model.FullName</p>
+        <p><strong>Email:</strong> @Model.Email</p>
+        <p><strong>Баланс:</strong> @Model.Balance</p>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h4>Улучшение холста</h4>
+        <p>
+            <strong>Текущая ширина:</strong> @ViewBag.CurrentCanvasWidth
+        </p>
+        <p>
+            <strong>Текущая высота:</strong> @ViewBag.CurrentCanvasHeight
+        </p>
+        <p>
+            <strong>Стоимость улучшения:</strong> @ViewBag.CanvasUpgradePrice
+        </p>
+
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger">@TempData["Error"]</div>
+        }
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success">@TempData["Success"]</div>
+        }
+
+        <form asp-action="UpgradeCanvas" method="post">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-primary">Купить улучшение</button>
+        </form>
+    </div>
+</div>
