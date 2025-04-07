@@ -6,6 +6,7 @@ using AucX.DataAccess.Context;
 using AucX.DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+
 namespace AucX.WebUI.Controllers
 {
     [Authorize]
