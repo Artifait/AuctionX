@@ -6,7 +6,14 @@ namespace AucX.Domain.Entities
     {
         public required string FullName { get; set; }
         
-        // Новое поле для хранения баланса (например, количество кликов или валюты)
-        public decimal Balance { get; set; } = 0; // Инициализируем нулевым значением
+        // Баланс пользователя
+        public decimal Balance { get; set; } = 0;
+
+        // Текущий максимальный размер холста
+        public int MaxCanvasWidth { get; set; }
+        public int MaxCanvasHeight { get; set; }
+
+        // Список купленных пользователем цветов
+        public virtual ICollection<UserColor> PurchasedColors { get; set; } = new List<UserColor>();
     }
 }

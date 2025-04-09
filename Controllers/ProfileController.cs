@@ -6,27 +6,25 @@ using AucX.DataAccess.Context;
 using AucX.DataAccess.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using AucX.WebUI.Infrastructure;
 
 namespace AucX.WebUI.Controllers
 {
     [Authorize]
     public class ProfileController : Controller
     {
+        private readonly IAppSettingsService _appSettingsService;
         private readonly UserManager<AppUser> _userManager;
-        private readonly IUserCanvasUpgradeService _upgradeService;
-        private readonly AppSettings _appSettings;
         private readonly AppDbContext _context;
 
         public ProfileController(
             UserManager<AppUser> userManager,
-            IUserCanvasUpgradeService upgradeService,
-            IOptions<AppSettings> appSettings,
+            IAppSettingsService appSettingsService,
             AppDbContext context)
         {
             _userManager = userManager;
-            _upgradeService = upgradeService;
-            _appSettings = appSettings.Value;
             _context = context;
+            _appSettingsService = appSettingsService;
         }
 
         public async Task<IActionResult> Index()
@@ -35,14 +33,8 @@ namespace AucX.WebUI.Controllers
             if (user == null)
                 return Unauthorized();
 
-            var canvasUpgrade = await _context.UserCanvasUpgrades.FirstOrDefaultAsync(u => u.UserId == user.Id);
-            ViewBag.CanvasUpgrade = canvasUpgrade;
-
-            ViewBag.CanvasUpgradePrice = _appSettings.CanvasUpgradePrice;
-            ViewBag.ColorPurchasePrice = _appSettings.ColorPurchasePrice;
-
-            int currentWidth = canvasUpgrade != null ? canvasUpgrade.MaxWidth : _appSettings.InitialCanvasWidth;
-            int currentHeight = canvasUpgrade != null ? canvasUpgrade.MaxHeight : _appSettings.InitialCanvasHeight;
+            int currentWidth = 10;
+            int currentHeight = 10;
 
             ViewBag.CurrentCanvasWidth = currentWidth;
             ViewBag.CurrentCanvasHeight = currentHeight;
@@ -58,17 +50,15 @@ namespace AucX.WebUI.Controllers
             if (user == null)
                 return Unauthorized();
 
-            if (user.Balance < _appSettings.CanvasUpgradePrice)
+            if (user.Balance < _appSettingsService.GetCanvasUpgradePrice())
             {
                 TempData["Error"] = "Недостаточно средств для покупки улучшения.";
                 return RedirectToAction("Index");
             }
 
             // Списываем средства
-            user.Balance -= _appSettings.CanvasUpgradePrice;
+            user.Balance -= _appSettingsService.GetCanvasUpgradePrice();
             await _userManager.UpdateAsync(user);
-
-            await _upgradeService.UpgradeCanvasAsync(user.Id);
 
             TempData["Success"] = "Улучшение успешно куплено!";
             return RedirectToAction("Index");

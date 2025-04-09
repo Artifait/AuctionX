@@ -1,0 +1,67 @@
+using System;
+
+namespace AucX.WebUI.Infrastructure;
+
+public interface IAppSettingsService
+{
+    List<ColorCollection> GetColorCollections();
+    int GetCanvasUpgradePrice();
+    int GetColorPurchasePrice();
+    (int width, int height) GetInitialCanvasSize();
+    (int maxWidth, int maxHeight) GetMaxCanvasSize();
+}
+
+public class AppSettingsService : IAppSettingsService
+{
+    private readonly IConfiguration _configuration;
+
+    public AppSettingsService(IConfiguration configuration)
+    {
+        _configuration = configuration;
+    }
+
+    public List<ColorCollection> GetColorCollections()
+    {
+        var colorShop = _configuration.GetSection("AppSettings:ColorShop").Get<List<ColorCollection>>();
+        return colorShop ?? new List<ColorCollection>();
+    }
+
+    public int GetCanvasUpgradePrice()
+    {
+        return _configuration.GetValue<int>("AppSettings:CanvasUpgradePrice");
+    }
+
+    public int GetColorPurchasePrice()
+    {
+        return _configuration.GetValue<int>("AppSettings:ColorPurchasePrice");
+    }
+
+    public (int width, int height) GetInitialCanvasSize()
+    {
+        var width = _configuration.GetValue<int>("AppSettings:InitialCanvasWidth");
+        var height = _configuration.GetValue<int>("AppSettings:InitialCanvasHeight");
+        return (width, height);
+    }
+
+    public (int maxWidth, int maxHeight) GetMaxCanvasSize()
+    {
+        var maxWidth = _configuration.GetValue<int>("AppSettings:MaxCanvasWidth");
+        var maxHeight = _configuration.GetValue<int>("AppSettings:MaxCanvasHeight");
+        return (maxWidth, maxHeight);
+    }
+}
+
+public class ColorCollection
+{
+    public List<Color> Default { get; set; } = null!;
+    public List<Color> Vibrant { get; set; } = null!;
+    public List<Color> Pastel { get; set; } = null!;
+    public List<Color> Neutrals { get; set; } = null!;
+}
+
+public class Color
+{
+    public string Name { get; set; } = null!;
+    public string ColorCode { get; set; } = null!;
+    public int Price { get; set; }
+}

@@ -20,3 +20,9 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+/* Добавить в site.css */
+.body-dark .notification {
+  background-color: #333;
+  border: 1px solid #444;
+}

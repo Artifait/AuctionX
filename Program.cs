@@ -1,12 +1,13 @@
 using AucX.DataAccess.Context;
 using AucX.DataAccess.Repositories;
 using AucX.Domain.Entities;
+using AucX.WebUI.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
+builder.Services.AddSingleton<IAppSettingsService, AppSettingsService>();
 
 // Конфигурация подключения к базе данных (например, SQL Server)
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -26,11 +27,15 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
     .AddDefaultTokenProviders();
 
 //builder.Services.AddTransient<IAuctionLotRepository, AuctionLotRepository>();
-builder.Services.AddTransient<IUserCanvasUpgradeService, UserCanvasUpgradeService>();
-builder.Services.AddTransient<IPixelArtRepository, PixelArtRepository>();
-builder.Services.AddTransient<IColorShopRepository, ColorShopRepository>();
+builder.Services.AddScoped<ICanvasItemRepository, CanvasItemRepository>();
+builder.Services.AddScoped<IUserColorRepository, UserColorRepository>();
 
-builder.Services.AddControllersWithViews();
+
+builder.Services.AddControllersWithViews()    
+    .AddJsonOptions(options => 
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+    });;
 
 var app = builder.Build();
 
