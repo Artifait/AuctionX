@@ -30,7 +30,7 @@ namespace AucX.DataAccess.Context
             // Дополнительные настройки для CanvasItem можно добавить при необходимости.
             // Например, установка уникального индекса по UserId, Width, Height и ColorCodes:
             builder.Entity<CanvasItem>()
-                   .HasIndex(c => new { c.UserId, c.Width, c.Height, c.ColorCodes })
+                   .HasIndex(c => new { c.UserId, c.Width, c.Height, c.PixelData })
                    .IsUnique();
         }
     }

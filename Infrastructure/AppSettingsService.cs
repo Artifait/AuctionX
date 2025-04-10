@@ -20,11 +20,14 @@ public class AppSettingsService : IAppSettingsService
         _configuration = configuration;
     }
 
-    public List<ColorCollection> GetColorCollections()
-    {
-        var colorShop = _configuration.GetSection("AppSettings:ColorShop").Get<List<ColorCollection>>();
-        return colorShop ?? new List<ColorCollection>();
-    }
+public List<ColorCollection> GetColorCollections()
+{
+    var section = _configuration.GetSection("AppSettings:ColorShop");
+    var colorShops = section.Get<List<ColorShopWrapper>>();
+    // Если необходимо получить коллекции из первого объекта
+    return colorShops?.FirstOrDefault()?.Collections ?? new List<ColorCollection>();
+}
+
 
     public int GetCanvasUpgradePrice()
     {
@@ -64,4 +67,9 @@ public class Color
     public string Name { get; set; } = null!;
     public string ColorCode { get; set; } = null!;
     public int Price { get; set; }
+}
+
+public class ColorShopWrapper
+{
+    public List<ColorCollection> Collections { get; set; } = new List<ColorCollection>();
 }

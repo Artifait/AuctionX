@@ -1,0 +1,530 @@
+﻿@using AucX.WebUI.Models
+@model CanvasViewModel
+@{
+    ViewData["Title"] = "Пиксельный редактор";
+}
+
+<div class="pixel-editor-container">
+    <form asp-action="Create" method="post" id="canvasForm">
+        @Html.AntiForgeryToken()
+        
+        <!-- Header -->
+        <div class="editor-header">
+            <input type="text" class="canvas-name" 
+                   asp-for="Name" placeholder="Название холста" 
+                   id="canvasName" required />
+            <div class="header-controls">
+                <button type="button" class="btn-undo" id="btnUndo">
+                    <i class="fas fa-undo"></i>
+                </button>
+                <button type="button" class="btn-redo" id="btnRedo">
+                    <i class="fas fa-redo"></i>
+                </button>
+                <button type="submit" class="btn-save" id="btnSave">
+                    <i class="fas fa-save"></i> Сохранить
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="editor-main">
+            <!-- Tools Panel -->
+            <div class="tool-panel">
+                <div class="tool-group">
+                    <button type="button" class="tool-btn active" 
+                            data-tool="pencil" id="toolPencil">
+                        <i class="fas fa-pencil-alt"></i>
+                    </button>
+                    <button type="button" class="tool-btn" 
+                            data-tool="fill" id="toolFill">
+                        <i class="fas fa-fill-drip"></i>
+                    </button>
+                    <button type="button" class="tool-btn" 
+                            data-tool="move" id="toolMove">
+                        <i class="fas fa-arrows-alt"></i>
+                    </button>
+                </div>
+                
+                <div class="size-controls">
+                    <div class="size-input-group">
+                        <label>Ширина</label>
+                        <input asp-for="Width" id="inputWidth" 
+                               min="8" max="@Model.MaxWidth" />
+                    </div>
+                    <div class="size-input-group">
+                        <label>Высота</label>
+                        <input asp-for="Height" id="inputHeight" 
+                               min="8" max="@Model.MaxHeight" />
+                    </div>
+                    <button type="button" class="btn-apply" 
+                            id="btnApplySize">
+                        Применить размер
+                    </button>
+                </div>
+            </div>
+
+            <!-- Canvas -->
+            <div class="canvas-container" id="canvasContainer">
+                <div class="canvas-scroll-wrapper">
+                    <div id="pixelCanvas" class="pixel-canvas"></div>
+                    <div id="selectionOverlay" class="selection-overlay"></div>
+                </div>
+            </div>
+
+            <!-- Color Palette -->
+            <div class="color-panel">
+                <div class="color-grid" id="colorGrid">
+                    @foreach (var color in Model.AvailableColors)
+                    {
+                        <div class="color-item" data-color="@color" 
+                             style="background-color: @color;"
+                             data-testid="color-item-@color">
+                            <div class="color-checkmark">✓</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <input type="hidden" asp-for="PixelData" id="pixelData" />
+    </form>
+</div>
+
+@section Styles {
+    <style>
+        /* Base Layout */
+        .pixel-editor-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+        .editor-header {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background: #2d2d2d;
+            border-bottom: 1px solid #404040;
+        }
+
+        .editor-main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Tools Panel */
+        .tool-panel {
+            width: 120px;
+            background: #2d2d2d;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Canvas Area */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: auto;
+            background: #333;
+        }
+
+        .canvas-scroll-wrapper {
+            padding: 2rem;
+            min-width: min-content;
+            min-height: min-content;
+        }
+
+        .pixel-canvas {
+            display: grid;
+            gap: 0;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            margin: auto;
+        }
+
+        .pixel {
+            width: 20px;
+            height: 20px;
+            border: 1px solid rgba(0,0,0,0.05);
+            cursor: crosshair;
+            transition: background 0.1s;
+        }
+
+        /* Color Panel */
+        .color-panel {
+            width: 200px;
+            background: #2d2d2d;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 0.5rem;
+        }
+    </style>
+}
+
+@section Scripts {
+<script>
+// Debugging configuration
+const DEBUG_MODE = true;
+const MAX_HISTORY_STEPS = 50;
+
+// State management
+let appState = {
+    width: @Model.Width,
+    height: @Model.Height,
+    pixels: {},
+    activeColor: '@Model.AvailableColors.FirstOrDefault() ?? "#ff0000"',
+    activeTool: 'pencil',
+    history: [],
+    historyIndex: -1,
+    selection: null,
+    isDrawing: false,
+    lastPosition: null
+};
+
+// Debug logger
+function logDebug(...args) {
+    if(DEBUG_MODE) console.log('[DEBUG]', ...args);
+}
+
+// Error handler
+function handleError(error, context = '') {
+    console.error(`[ERROR] ${context}:`, error);
+    alert(`Произошла ошибка${context ? ` в ${context}` : ''}`);
+}
+
+// DOM Elements cache
+const elements = {
+    canvas: null,
+    colorItems: null,
+    tools: null,
+    inputs: null
+};
+
+// Initialization
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        initializeDOMElements();
+        initializeEventListeners();
+        initializeCanvas();
+        updateColorSelection();
+        logDebug('Initialization complete');
+    } catch (error) {
+        handleError(error, 'initialization');
+    }
+});
+
+function initializeDOMElements() {
+    elements.canvas = document.getElementById('pixelCanvas');
+    elements.colorItems = document.querySelectorAll('.color-item');
+    elements.tools = {
+        pencil: document.getElementById('toolPencil'),
+        fill: document.getElementById('toolFill'),
+        move: document.getElementById('toolMove')
+    };
+    elements.inputs = {
+        width: document.getElementById('inputWidth'),
+        height: document.getElementById('inputHeight')
+    };
+    
+    if(!elements.canvas) throw new Error('Canvas element not found');
+}
+
+function initializeEventListeners() {
+    // Canvas interactions
+    elements.canvas.addEventListener('mousedown', startDrawing);
+    elements.canvas.addEventListener('mousemove', handleDrawing);
+    elements.canvas.addEventListener('mouseup', stopDrawing);
+    elements.canvas.addEventListener('mouseleave', stopDrawing);
+
+    // Tool selection
+    Object.values(elements.tools).forEach(tool => {
+        tool.addEventListener('click', () => selectTool(tool.dataset.tool));
+    });
+
+    // Color selection
+    elements.colorItems.forEach(colorItem => {
+        colorItem.addEventListener('click', () => 
+            selectColor(colorItem.dataset.color));
+    });
+
+    // Size controls
+    document.getElementById('btnApplySize').addEventListener('click', applyCanvasSize);
+    document.getElementById('btnUndo').addEventListener('click', undo);
+    document.getElementById('btnRedo').addEventListener('click', redo);
+}
+
+function initializeCanvas() {
+    try {
+        elements.canvas.style.gridTemplateColumns = `repeat(${appState.width}, 1fr)`;
+        renderCanvasGrid();
+        logDebug('Canvas initialized', appState);
+    } catch (error) {
+        handleError(error, 'canvas initialization');
+    }
+}
+
+function renderCanvasGrid() {
+    try {
+        elements.canvas.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        
+        for(let y = 0; y < appState.height; y++) {
+            for(let x = 0; x < appState.width; x++) {
+                const pixel = createPixelElement(x, y);
+                fragment.appendChild(pixel);
+            }
+        }
+        
+        elements.canvas.appendChild(fragment);
+    } catch (error) {
+        handleError(error, 'canvas rendering');
+    }
+}
+
+function createPixelElement(x, y) {
+    const pixel = document.createElement('div');
+    pixel.className = 'pixel';
+    pixel.dataset.x = x;
+    pixel.dataset.y = y;
+    pixel.style.backgroundColor = appState.pixels[`${x},${y}`] || '#ffffff';
+    return pixel;
+}
+
+// Drawing logic
+function startDrawing(event) {
+    try {
+        if(!event.target.classList.contains('pixel')) return;
+        
+        appState.isDrawing = true;
+        const {x, y} = getPixelCoordinates(event.target);
+        handlePixelAction(x, y);
+        appState.lastPosition = {x, y};
+    } catch (error) {
+        handleError(error, 'start drawing');
+    }
+}
+
+function handleDrawing(event) {
+    try {
+        if(!appState.isDrawing) return;
+        
+        const pixel = event.target.closest('.pixel');
+        if(!pixel) return;
+        
+        const {x, y} = getPixelCoordinates(pixel);
+        if(x === appState.lastPosition?.x && y === appState.lastPosition?.y) return;
+        
+        handlePixelAction(x, y);
+        appState.lastPosition = {x, y};
+    } catch (error) {
+        handleError(error, 'handle drawing');
+    }
+}
+
+function stopDrawing() {
+    try {
+        if(appState.isDrawing) {
+            appState.isDrawing = false;
+            saveHistoryState();
+        }
+    } catch (error) {
+        handleError(error, 'stop drawing');
+    }
+}
+
+function handlePixelAction(x, y) {
+    try {
+        switch(appState.activeTool) {
+            case 'pencil': 
+                setPixelColor(x, y, appState.activeColor);
+                break;
+            case 'fill': 
+                performFloodFill(x, y);
+                break;
+            case 'move': 
+                handleMoveAction(x, y);
+                break;
+        }
+    } catch (error) {
+        handleError(error, 'pixel action');
+    }
+}
+
+// Core functionality
+function setPixelColor(x, y, color) {
+    try {
+        const key = `${x},${y}`;
+        if(appState.pixels[key] === color) return;
+        
+        appState.pixels[key] = color;
+        updatePixelVisual(x, y, color);
+    } catch (error) {
+        handleError(error, 'set pixel color');
+    }
+}
+
+function updatePixelVisual(x, y, color) {
+    const pixel = elements.canvas.querySelector(`[data-x="${x}"][data-y="${y}"]`);
+    if(pixel) pixel.style.backgroundColor = color;
+}
+
+// History management
+function saveHistoryState() {
+    try {
+        const currentState = JSON.stringify(appState.pixels);
+        
+        if(currentState === appState.history[appState.historyIndex]) return;
+        
+        appState.history = appState.history
+            .slice(0, appState.historyIndex + 1)
+            .concat(currentState)
+            .slice(-MAX_HISTORY_STEPS);
+        
+        appState.historyIndex = appState.history.length - 1;
+        logDebug('History saved', appState.history);
+    } catch (error) {
+        handleError(error, 'save history');
+    }
+}
+
+function undo() {
+    try {
+        if(appState.historyIndex > 0) {
+            appState.historyIndex--;
+            appState.pixels = JSON.parse(appState.history[appState.historyIndex]);
+            redrawCanvas();
+        }
+    } catch (error) {
+        handleError(error, 'undo');
+    }
+}
+
+function redo() {
+    try {
+        if(appState.historyIndex < appState.history.length - 1) {
+            appState.historyIndex++;
+            appState.pixels = JSON.parse(appState.history[appState.historyIndex]);
+            redrawCanvas();
+        }
+    } catch (error) {
+        handleError(error, 'redo');
+    }
+}
+
+function redrawCanvas() {
+    try {
+        elements.canvas.querySelectorAll('.pixel').forEach(pixel => {
+            const x = parseInt(pixel.dataset.x);
+            const y = parseInt(pixel.dataset.y);
+            pixel.style.backgroundColor = appState.pixels[`${x},${y}`] || '#ffffff';
+        });
+    } catch (error) {
+        handleError(error, 'redraw canvas');
+    }
+}
+
+// Tools implementation
+function selectTool(tool) {
+    try {
+        Object.values(elements.tools).forEach(t => 
+            t.classList.remove('active'));
+        elements.tools[tool].classList.add('active');
+        appState.activeTool = tool;
+        logDebug('Tool selected:', tool);
+    } catch (error) {
+        handleError(error, 'select tool');
+    }
+}
+
+function selectColor(color) {
+    try {
+        appState.activeColor = color;
+        updateColorSelection();
+        logDebug('Color selected:', color);
+    } catch (error) {
+        handleError(error, 'select color');
+    }
+}
+
+function updateColorSelection() {
+    try {
+        elements.colorItems.forEach(item => {
+            const isActive = item.dataset.color === appState.activeColor;
+            item.classList.toggle('active', isActive);
+            item.querySelector('.color-checkmark').style.display = 
+                isActive ? 'block' : 'none';
+        });
+    } catch (error) {
+        handleError(error, 'update color selection');
+    }
+}
+
+// Canvas size handling
+function applyCanvasSize() {
+    try {
+        const newWidth = clampValue(
+            parseInt(elements.inputs.width.value) || 32,
+            8,
+            @Model.MaxWidth
+        );
+        
+        const newHeight = clampValue(
+            parseInt(elements.inputs.height.value) || 32,
+            8,
+            @Model.MaxHeight
+        );
+        
+        if(newWidth !== appState.width || newHeight !== appState.height) {
+            appState.width = newWidth;
+            appState.height = newHeight;
+            elements.inputs.width.value = newWidth;
+            elements.inputs.height.value = newHeight;
+            initializeCanvas();
+            saveHistoryState();
+            logDebug('Canvas size changed:', {newWidth, newHeight});
+        }
+    } catch (error) {
+        handleError(error, 'apply canvas size');
+    }
+}
+
+function clampValue(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
+
+// Form submission
+document.getElementById('canvasForm').addEventListener('submit', function(e) {
+    try {
+        const pixelData = [];
+        for(let y = 0; y < appState.height; y++) {
+            for(let x = 0; x < appState.width; x++) {
+                pixelData.push(appState.pixels[`${x},${y}`] || '#ffffff');
+            }
+        }
+        document.getElementById('pixelData').value = pixelData.join(',');
+        logDebug('Form submitted', pixelData);
+    } catch (error) {
+        handleError(error, 'form submission');
+        e.preventDefault();
+    }
+});
+
+// Utility functions
+function getPixelCoordinates(pixelElement) {
+    return {
+        x: parseInt(pixelElement.dataset.x),
+        y: parseInt(pixelElement.dataset.y)
+    };
+}
+</script>
+}

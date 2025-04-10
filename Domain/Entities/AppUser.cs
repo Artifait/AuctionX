@@ -10,8 +10,8 @@ namespace AucX.Domain.Entities
         public decimal Balance { get; set; } = 0;
 
         // Текущий максимальный размер холста
-        public int MaxCanvasWidth { get; set; }
-        public int MaxCanvasHeight { get; set; }
+        public int MaxCanvasWidth { get; set; } = 2;
+        public int MaxCanvasHeight { get; set; } = 2;
 
         // Список купленных пользователем цветов
         public virtual ICollection<UserColor> PurchasedColors { get; set; } = new List<UserColor>();

@@ -37,20 +37,13 @@ namespace AucX.DataAccess.Repositories
 
         public async Task AddCanvasItemAsync(CanvasItem canvasItem)
         {
-            // Сначала выбираем холсты данного пользователя с совпадающими размерами
-            var matchingCanvases = await _context.CanvasItems
-                .Where(c => c.Width == canvasItem.Width 
-                         && c.Height == canvasItem.Height)
-                .ToListAsync();
+            bool exists = await _context.CanvasItems
+                .AnyAsync(c => c.Width == canvasItem.Width 
+                            && c.Height == canvasItem.Height
+                            && c.PixelData == canvasItem.PixelData);
 
-            // Затем проверяем совпадение цветовых кодов
-            bool exists = matchingCanvases.Any(c => c.ColorCodes == canvasItem.ColorCodes);
-
-            if (exists)
-            {
-                throw new InvalidOperationException("Такой холст уже существует...");
-            }
-
+            if (exists) throw new InvalidOperationException("Холст уже существует");
+            
             _context.CanvasItems.Add(canvasItem);
         }
 
