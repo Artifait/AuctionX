@@ -15,5 +15,7 @@ namespace AucX.Domain.Entities
 
         // Список купленных пользователем цветов
         public virtual ICollection<UserColor> PurchasedColors { get; set; } = new List<UserColor>();
+        
+        public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
     }
 }

@@ -1,8 +1,8 @@
+using AucX.DataAccess.Repositories;
 using AucX.Domain.Entities;
 using AucX.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 
 namespace AucX.Controllers
 {
@@ -10,12 +10,15 @@ namespace AucX.Controllers
     {
         private readonly UserManager<AppUser> _userManager;
         private readonly SignInManager<AppUser> _signInManager;
+        private readonly IBannedUserRepository _bannedUserRepository;
 
         public AccountController(UserManager<AppUser> userManager,
-                                SignInManager<AppUser> signInManager)
+                                SignInManager<AppUser> signInManager,
+                                IBannedUserRepository bannedUserRepository)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _bannedUserRepository = bannedUserRepository;
         }
 
         // GET: /Account/Register
@@ -38,6 +41,7 @@ namespace AucX.Controllers
                 {
                     // Авторизуем пользователя после регистрации
                     await _signInManager.SignInAsync(user, isPersistent: false);
+                    await _userManager.AddToRoleAsync(user, "User");
                     return RedirectToAction("Index", "Home");
                 }
                 foreach (var error in result.Errors)
@@ -62,7 +66,19 @@ namespace AucX.Controllers
         {
             if (ModelState.IsValid)
             {
-                var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
+                var user = await _userManager.FindByEmailAsync(model.Email);
+                if (user != null)
+                {
+                    var isBanned = await _bannedUserRepository.IsUserBannedAsync(user.Id);
+                    if (isBanned)
+                    {
+                        var banInfo = await _bannedUserRepository.GetBannedUserAsync(user.Id);
+                        ModelState.AddModelError("", $"Аккаунт заблокирован. Причина: {banInfo?.Reason}");
+                        return View(model);
+                    }
+                }
+
+                var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, false);
                 if (result.Succeeded)
                 {
                     return RedirectToAction("Index", "Home");

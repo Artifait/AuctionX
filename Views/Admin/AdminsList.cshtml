@@ -1,0 +1,53 @@
+﻿@model IEnumerable<AucX.Domain.Entities.AppUser>
+@{
+    ViewData["Title"] = "Список администраторов";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Список администраторов</h2>
+        <a class="btn btn-success" href="@Url.Action("AddAdmin", "Admin")">Добавить администратора</a>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info">
+            Нет зарегистрированных администраторов.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Email</th>
+                        <th>Полное имя</th>
+                        <th>Дата регистрации</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var admin in Model)
+                    {
+                        <tr>
+                            <td>@admin.Email</td>
+                            <td>@admin.FullName</td>
+                            <td>@admin.RegisteredAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>
+                                <!-- Кнопка удаления администратора -->
+                                <form asp-action="RemoveAdmin" method="post" class="d-inline">
+                                    <input type="hidden" name="userId" value="@admin.Id" />
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Вы действительно хотите удалить администратора?');">
+                                        Удалить
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

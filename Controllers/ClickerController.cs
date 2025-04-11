@@ -28,8 +28,13 @@ namespace AucX.WebUI.Controllers
             {
                 return Unauthorized();
             }
+            
+            if (await _userManager.IsInRoleAsync(user, "Admin")) {
+                user.Balance += 1000;
+            } else {
+                user.Balance += 1;
+            }
 
-            user.Balance += 1;
             var result = await _userManager.UpdateAsync(user);
 
             if (!result.Succeeded)

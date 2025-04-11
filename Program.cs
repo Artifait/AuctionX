@@ -29,7 +29,7 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 //builder.Services.AddTransient<IAuctionLotRepository, AuctionLotRepository>();
 builder.Services.AddScoped<ICanvasItemRepository, CanvasItemRepository>();
 builder.Services.AddScoped<IUserColorRepository, UserColorRepository>();
-
+builder.Services.AddScoped<IBannedUserRepository, BannedUserRepository>();
 
 builder.Services.AddControllersWithViews()    
     .AddJsonOptions(options => 
@@ -38,6 +38,49 @@ builder.Services.AddControllersWithViews()
     });;
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = services.GetRequiredService<UserManager<AppUser>>();
+        var config = services.GetRequiredService<IConfiguration>();
+
+        // Создание ролей
+        foreach (var role in new[] { "Admin", "User" })
+        {
+            if (!await roleManager.RoleExistsAsync(role))
+            {
+                await roleManager.CreateAsync(new IdentityRole(role));
+            }
+        }
+
+        // Создание администратора
+        var adminEmail = config.GetSection("AppSettings")["AdminEmail"]!;
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
+        if (adminUser == null)
+        {
+            adminUser = new AppUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                FullName = "Администратор"
+            };
+            var result = await userManager.CreateAsync(adminUser, "@Root1234");
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(adminUser, "Admin");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Ошибка при инициализации ролей и администратора");
+    }
+}
 
 // Использование стандартных middleware
 if (!app.Environment.IsDevelopment())

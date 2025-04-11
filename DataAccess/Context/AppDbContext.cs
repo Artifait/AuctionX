@@ -11,6 +11,7 @@ namespace AucX.DataAccess.Context
         {
         }
 
+        public DbSet<BannedUser> BannedUsers { get; set; }
         // Таблица для хранения купленных цветов
         public DbSet<UserColor> UserColors { get; set; }
 

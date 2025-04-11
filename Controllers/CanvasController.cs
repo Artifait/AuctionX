@@ -79,10 +79,9 @@ namespace AucX.WebUI.Controllers
         {
             var purchased = (await _colorRepo.GetPurchasedColorsAsync(user.Id))
                 .Select(c => c.ColorCode);
+
             var collections = _settings.GetColorCollections();
-            
-            var defaults = collections
-                .SelectMany(c => c.Default.Select(d => d.ColorCode));
+            var defaults = collections.FirstOrDefault()!.Default.Select(g => g.ColorCode);
             
             return purchased.Concat(defaults).Distinct().ToList();
         }
