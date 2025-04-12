@@ -1,0 +1,547 @@
+﻿@using Microsoft.AspNetCore.Antiforgery
+@inject IAntiforgery Antiforgery
+
+@model AucX.WebUI.Controllers.CanvasEditorViewModel
+@{
+    ViewData["Title"] = "Редактор холстов";
+}
+
+<div class="canvas-editor">
+    @Html.AntiForgeryToken()
+    <!-- Панель инструментов -->
+    <div class="toolbar">
+        <input type="text" id="canvasName" 
+               placeholder="Название холста" 
+               maxlength="50"
+               class="form-control name-input" />
+               
+        <div class="toolbar-group">
+            <label>Ширина:
+                <input type="number" id="widthInput" 
+                       min="1" max="@Model.MaxWidth" 
+                       value="2" class="size-input" />
+            </label>
+            <label>Высота:
+                <input type="number" id="heightInput" 
+                       min="1" max="@Model.MaxHeight" 
+                       value="2" class="size-input" />
+            </label>
+            <button id="resizeBtn" class="btn btn-sm btn-secondary">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+
+        <div class="toolbar-group">
+            <select id="toolSelect" class="form-select tool-select">
+                @foreach (var tool in Model.Tools)
+                {
+                    <option value="@tool.ToLower()">@tool</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <!-- Основной контейнер редактора -->
+    <div class="editor-container">
+        <!-- Палитра цветов -->
+        <div class="color-palette">
+            @foreach (var color in Model.UserColors)
+            {
+                <div class="color-item" 
+                     style="background-color: @color.ColorCode"
+                     data-color="@color.ColorCode"
+                     title="@color.Name (@color.Category)">
+                    @if (color.Price > 0)
+                    {
+                        <div class="color-price">@color.Price</div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Контейнер для холста -->
+        <div class="canvas-wrapper">
+            <canvas id="mainCanvas"></canvas>
+            <div id="gridOverlay"></div>
+        </div>
+    </div>
+
+    <!-- Кнопка сохранения -->
+    <div class="footer-toolbar">
+        <button id="saveBtn" class="btn btn-primary btn-save">
+            <i class="fas fa-save"></i> Сохранить холст
+        </button>
+        <div id="statusMessage" class="status-message"></div>
+    </div>
+</div>
+
+@section Styles {
+<style>
+.canvas-editor {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 15px;
+    background: #f8f9fa;
+    overflow: hidden;
+}
+
+.toolbar {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: #f1f3f5;
+    border-radius: 6px;
+}
+
+.size-input {
+    width: 70px;
+    padding: 4px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+.editor-container {
+    flex: 1;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 15px;
+    min-height: 0;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.color-palette {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    height: fit-content;
+    padding: 5px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.color-item {
+    width: 40px;
+    height: 40px;
+    border: 2px solid #dee2e6;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.color-item:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.color-item.selected {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.color-price {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    font-size: 0.6em;
+    padding: 2px 4px;
+    border-radius: 3px 0 0 0;
+}
+
+.canvas-wrapper {
+    position: relative;
+    overflow: auto;
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    flex: 1;
+}
+
+#mainCanvas {
+    image-rendering: pixelated;
+    background: white;
+}
+
+#gridOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image: 
+        linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px);
+}
+
+.footer-toolbar {
+    margin-top: 15px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.btn-save {
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* Индикатор выбранного инструмента */
+#toolSelect option:checked {
+    font-weight: bold;
+    background: #e9ecef;
+}
+
+/* Подсветка активного инструмента */
+.tool-select:focus {
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+.status-message {
+    color: #6c757d;
+    font-size: 0.9em;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.status-message.visible {
+    opacity: 1;
+}
+
+/* Адаптивность для мобильных устройств */
+@@media (max-width: 768px) {
+    .editor-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+
+    .color-palette {
+        grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+    }
+
+    .toolbar {
+        gap: 10px;
+    }
+
+    .size-input {
+        width: 60px;
+    }
+}
+</style>
+}
+
+@section Scripts {
+<script>
+// Инициализация переменных
+let currentColor = null;
+let currentTool = 'brush';
+let isDrawing = false;
+let canvas, ctx, gridOverlay;
+let pixelSize = 0;
+let canvasWidth = 2;
+let canvasHeight = 2;
+
+// Основная функция инициализации
+document.addEventListener('DOMContentLoaded', () => {
+    // Инициализация элементов
+    canvas = document.getElementById('mainCanvas');
+    ctx = canvas.getContext('2d');
+    gridOverlay = document.getElementById('gridOverlay');
+    
+    // Настройка начального размера
+    setupCanvas(2, 2);
+    
+    // Обработчики событий
+    setupEventListeners();
+    updateGridOverlay();
+});
+
+// Настройка обработчиков событий
+function setupEventListeners() {
+    // Изменение размера холста
+    document.getElementById('resizeBtn').addEventListener('click', () => {
+        const newWidth = Math.min(parseInt(widthInput.value) || 2, @Model.MaxWidth);
+        const newHeight = Math.min(parseInt(heightInput.value) || 2, @Model.MaxHeight);
+        setupCanvas(newWidth, newHeight);
+    });
+
+    // Выбор цвета
+    document.querySelectorAll('.color-item').forEach(item => {
+        item.addEventListener('click', () => {
+            document.querySelectorAll('.color-item').forEach(c => 
+                c.classList.remove('selected'));
+            item.classList.add('selected');
+            currentColor = item.dataset.color;
+        });
+    });
+
+    // Выбор инструмента
+document.getElementById('toolSelect').addEventListener('change', (e) => {
+    currentTool = e.target.value.toLowerCase();
+    isDrawing = false; // Принудительный сброс состояния рисования
+    canvas.style.cursor = 'default'; // Сброс курсора
+});
+    // Сохранение холста
+    document.getElementById('saveBtn').addEventListener('click', saveCanvas);
+
+    // Обработчики рисования
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseleave', () => {
+        if (isDrawing) stopDrawing();
+    });
+    canvas.addEventListener('touchstart', handleTouch);
+    canvas.addEventListener('touchmove', handleTouch);
+    canvas.addEventListener('touchend', stopDrawing);
+    canvas.addEventListener('touchcancel', stopDrawing);
+    // Адаптивный ресайз
+    window.addEventListener('resize', () => {
+        setupCanvas(canvasWidth, canvasHeight);
+    });
+}
+
+// Настройка холста
+function setupCanvas(width, height) {
+    canvasWidth = width;
+    canvasHeight = height;
+    
+    // Рассчет размера пикселя
+    const wrapper = document.querySelector('.canvas-wrapper');
+    const maxWidth = wrapper.offsetWidth - 40;
+    const maxHeight = wrapper.offsetHeight - 40;
+    
+    const widthRatio = maxWidth / width;
+    const heightRatio = maxHeight / height;
+    pixelSize = Math.min(widthRatio, heightRatio);
+    
+    // Установка размеров
+    canvas.width = width;
+    canvas.height = height;
+    canvas.style.width = `${width * pixelSize}px`;
+    canvas.style.height = `${height * pixelSize}px`;
+    
+    // Очистка холста
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Обновление сетки
+    updateGridOverlay();
+}
+
+// Обновление сетки
+function updateGridOverlay() {
+    gridOverlay.style.backgroundSize = `${pixelSize}px ${pixelSize}px`;
+    gridOverlay.style.width = `${canvas.width * pixelSize}px`;
+    gridOverlay.style.height = `${canvas.height * pixelSize}px`;
+}
+
+// Обработка рисования
+function startDrawing(e) {
+    if (!currentColor) {
+        showStatus('Выберите цвет для рисования!', 'error');
+        return;
+    }
+    isDrawing = true;
+    draw(e);
+}
+
+function draw(e) {
+    if (!isDrawing) return;
+    
+    const pos = getCanvasPosition(e);
+    if (pos.x < 0 || pos.y < 0 || pos.x >= canvasWidth || pos.y >= canvasHeight) return;
+
+    if (currentTool === 'brush') {
+        ctx.fillStyle = currentColor;
+        ctx.fillRect(pos.x, pos.y, 1, 1);
+    } else if (currentTool === 'заливка') {
+        floodFill(pos.x, pos.y);
+    }
+}
+
+function stopDrawing() {
+    isDrawing = false;
+}
+
+// Вспомогательные функции
+function getCanvasPosition(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX || e.touches[0].clientX;
+    const clientY = e.clientY || e.touches[0].clientY;
+    
+    return {
+        x: Math.floor((clientX - rect.left) / pixelSize),
+        y: Math.floor((clientY - rect.top) / pixelSize)
+    };
+}
+
+// Обновленная функция floodFill
+function floodFill(x, y) {
+    if (!currentColor) return;
+
+    const startTime = Date.now();
+    try {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const targetColor = getPixelColor(imageData, x, y);
+        const fillColor = hexToRgb(currentColor);
+        
+        if (colorMatch(targetColor, fillColor)) return;
+
+        const stack = [[x, y]];
+        const visited = new Set();
+        const maxOperations = 100000; // Защита от бесконечного цикла
+
+        let operations = 0;
+        
+        while (stack.length > 0 && operations++ < maxOperations) {
+            const [currentX, currentY] = stack.pop();
+            const key = `${currentX},${currentY}`;
+            
+            if (currentX < 0 || currentY < 0 || 
+                currentX >= canvasWidth || currentY >= canvasHeight ||
+                visited.has(key)) continue;
+                
+            const currentColor = getPixelColor(imageData, currentX, currentY);
+            if (!colorMatch(currentColor, targetColor)) continue;
+
+            // Рисуем сразу на холсте
+            ctx.fillStyle = currentColor;
+            ctx.fillRect(currentX, currentY, 1, 1);
+            visited.add(key);
+
+            stack.push(
+                [currentX + 1, currentY],
+                [currentX - 1, currentY],
+                [currentX, currentY + 1],
+                [currentX, currentY - 1]
+            );
+        }
+
+        if (operations >= maxOperations) {
+            console.warn('Flood fill прерван по таймауту');
+        }
+    } catch (error) {
+        console.error('Ошибка заливки:', error);
+    } finally {
+        stopDrawing();
+        console.log(`Заливка выполнена за ${Date.now() - startTime}ms`);
+    }
+}
+
+// Конвертация цветов
+function hexToRgb(hex) {
+    const bigint = parseInt(hex.slice(1), 16);
+    return {
+        r: (bigint >> 16) & 255,
+        g: (bigint >> 8) & 255,
+        b: bigint & 255
+    };
+}
+
+function colorMatch(c1, c2) {
+    return c1.r === c2.r && c1.g === c2.g && c1.b === c2.b;
+}
+
+function getPixelColor(imageData, x, y) {
+    const index = (y * imageData.width + x) * 4;
+    return {
+        r: imageData.data[index],
+        g: imageData.data[index + 1],
+        b: imageData.data[index + 2]
+    };
+}
+
+// Сохранение холста
+async function saveCanvas() {
+    const canvasName = document.getElementById('canvasName').value.trim();
+    const width = canvasWidth;
+    const height = canvasHeight;
+    
+    // Валидация данных
+    if (!canvasName || width < 1 || height < 1) {
+        showStatus('Заполните все обязательные поля!', 'error');
+        return;
+    }
+
+    // Сбор данных
+    const pixels = [];
+    const imageData = ctx.getImageData(0, 0, width, height);
+    
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const color = getPixelColor(imageData, x, y);
+            pixels.push(rgbToHex(color.r, color.g, color.b));
+        }
+    }
+
+    // Формирование запроса
+    const request = {
+        Name: canvasName,
+        Width: width,
+        Height: height,
+        Pixels: pixels
+    };
+
+    console.log('Отправляемый запрос:', request); // Логирование
+
+    try {
+        const response = await fetch('/CanvasEditor/SaveCanvas', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            },
+            body: JSON.stringify(request)
+        });
+        
+        // Обработка ответа
+    } catch (error) {
+        console.error('Ошибка:', error);
+    }
+}
+
+// Вспомогательные функции
+function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(c => 
+        c.toString(16).padStart(2, '0')).join('');
+}
+
+function showStatus(message, type) {
+    const status = document.getElementById('statusMessage');
+    status.textContent = message;
+    status.className = `status-message visible ${type}`;
+    setTimeout(() => {
+        status.classList.remove('visible');
+    }, 3000);
+}
+
+// Обработка тач-событий
+function handleTouch(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const mouseEvent = new MouseEvent("mousedown", {
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+    canvas.dispatchEvent(mouseEvent);
+}
+</script>
+}
