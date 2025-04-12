@@ -1,0 +1,77 @@
+﻿<!-- Views/Shop/Index.cshtml -->
+@model AucX.WebUI.Controllers.ShopViewModel
+
+<div class="container">
+    <h1 class="my-4">Магазин</h1>
+    
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Баланс</h5>
+                    <h2 class="text-success">@Model.Balance.ToString("N0")</h2>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h5 class="card-title">Холст</h5>
+                    <p>Текущий размер: @Model.CurrentWidth x @Model.CurrentHeight</p>
+                    <p>Максимальный размер: @Model.MaxWidth x @Model.MaxHeight</p>
+                    <form method="post" asp-action="UpgradeCanvas">
+                        <button type="submit" class="btn btn-primary" 
+                                @(Model.CurrentWidth >= Model.MaxWidth && Model.CurrentHeight >= Model.MaxHeight ? "disabled" : "")>
+                            Улучшить за @Model.UpgradePrice
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="row">
+                @foreach (var category in Model.Colors.GroupBy(c => c.Category))
+                {
+                    <div class="col-12 mb-4">
+                        <h3>@category.Key</h3>
+                        <div class="row">
+                            @foreach (var color in category)
+                            {
+                                <div class="col-md-3 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body text-center" style="background-color: @color.ColorCode">
+                                            <h5 class="card-title">@color.Name</h5>
+                                            @if (color.IsOwned)
+                                            {
+                                                <button class="btn btn-success" disabled>Куплено</button>
+                                            }
+                                            else
+                                            {
+                                                <form method="post" asp-action="BuyColor">
+                                                    <input type="hidden" name="category" value="@color.Category" />
+                                                    <input type="hidden" name="colorName" value="@color.Name" />
+                                                    <button type="submit" class="btn btn-primary">
+                                                        Купить за @color.Price
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

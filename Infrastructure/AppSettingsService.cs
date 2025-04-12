@@ -6,9 +6,9 @@ public interface IAppSettingsService
 {
     List<ColorCollection> GetColorCollections();
     int GetCanvasUpgradePrice();
-    int GetColorPurchasePrice();
     (int width, int height) GetInitialCanvasSize();
     (int maxWidth, int maxHeight) GetMaxCanvasSize();
+    List<Color> GetColors();
 }
 
 public class AppSettingsService : IAppSettingsService
@@ -20,23 +20,17 @@ public class AppSettingsService : IAppSettingsService
         _configuration = configuration;
     }
 
-public List<ColorCollection> GetColorCollections()
-{
-    var section = _configuration.GetSection("AppSettings:ColorShop");
-    var colorShops = section.Get<List<ColorShopWrapper>>();
-    // Если необходимо получить коллекции из первого объекта
-    return colorShops?.FirstOrDefault()?.Collections ?? new List<ColorCollection>();
-}
-
+    public List<ColorCollection> GetColorCollections()
+    {
+        var section = _configuration.GetSection("AppSettings:ColorShop");
+        var colorShops = section.Get<List<ColorShopWrapper>>();
+        // Если необходимо получить коллекции из первого объекта
+        return colorShops?.FirstOrDefault()?.Collections ?? new List<ColorCollection>();
+    }
 
     public int GetCanvasUpgradePrice()
     {
         return _configuration.GetValue<int>("AppSettings:CanvasUpgradePrice");
-    }
-
-    public int GetColorPurchasePrice()
-    {
-        return _configuration.GetValue<int>("AppSettings:ColorPurchasePrice");
     }
 
     public (int width, int height) GetInitialCanvasSize()
@@ -51,6 +45,13 @@ public List<ColorCollection> GetColorCollections()
         var maxWidth = _configuration.GetValue<int>("AppSettings:MaxCanvasWidth");
         var maxHeight = _configuration.GetValue<int>("AppSettings:MaxCanvasHeight");
         return (maxWidth, maxHeight);
+    }
+
+    public List<Color> GetColors()
+    {
+        return GetColorCollections()
+            .SelectMany(c => c.GetColors())
+            .ToList();
     }
 }
 
@@ -67,6 +68,7 @@ public class Color
     public string Name { get; set; } = null!;
     public string ColorCode { get; set; } = null!;
     public int Price { get; set; }
+    public string? Category { get; set; }
 }
 
 public class ColorShopWrapper

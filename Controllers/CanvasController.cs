@@ -47,7 +47,7 @@ namespace AucX.WebUI.Controllers
                 Name = model.Name,
                 Width = model.Width,
                 Height = model.Height,
-                PixelData = Request.Form["pixelData"],
+                PixelData = Request.Form["pixelData"]!,
                 UserId = user.Id
             };
 
