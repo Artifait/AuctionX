@@ -2,66 +2,59 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using AucX.Domain.Entities;
-using AucX.DataAccess.Context;
 using AucX.DataAccess.Repositories;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using AucX.WebUI.Infrastructure;
+using AucX.WebUI.Models;
 
 namespace AucX.WebUI.Controllers
 {
     [Authorize]
     public class ProfileController : Controller
     {
-        private readonly IAppSettingsService _appSettingsService;
         private readonly UserManager<AppUser> _userManager;
-        private readonly AppDbContext _context;
+        private readonly ICanvasItemRepository _canvasRepo;
+        private readonly IAuctionService _auctionService;
 
         public ProfileController(
             UserManager<AppUser> userManager,
-            IAppSettingsService appSettingsService,
-            AppDbContext context)
+            ICanvasItemRepository canvasRepo,
+            IAuctionService auctionService)
         {
             _userManager = userManager;
-            _context = context;
-            _appSettingsService = appSettingsService;
+            _canvasRepo = canvasRepo;
+            _auctionService = auctionService;
         }
 
         public async Task<IActionResult> Index()
         {
             var user = await _userManager.GetUserAsync(User);
-            if (user == null)
-                return Unauthorized();
+            var activeLots = await _auctionService.GetUserActiveLotsAsync(user!.Id);
+            var userArts = await _canvasRepo.GetUserCanvasItemsAsync(user.Id);
 
-            int currentWidth = 10;
-            int currentHeight = 10;
-
-            ViewBag.CurrentCanvasWidth = currentWidth;
-            ViewBag.CurrentCanvasHeight = currentHeight;
-
-            return View(user);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpgradeCanvas()
-        {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
-                return Unauthorized();
-
-            if (user.Balance < _appSettingsService.GetCanvasUpgradePrice())
+            return View(new ProfileViewModel
             {
-                TempData["Error"] = "Недостаточно средств для покупки улучшения.";
-                return RedirectToAction("Index");
-            }
-
-            // Списываем средства
-            user.Balance -= _appSettingsService.GetCanvasUpgradePrice();
-            await _userManager.UpdateAsync(user);
-
-            TempData["Success"] = "Улучшение успешно куплено!";
-            return RedirectToAction("Index");
+                UserName = user.UserName!,
+                Email = user.Email!,
+                UserCanvasItems = userArts.Select(a => new CanvasItemDto
+                {
+                    Id = a.Id,
+                    Name = a.Name,
+                    PixelData = a.PixelData
+                }).ToList(),
+                AuctionLots = activeLots.Select(l => new AuctionLotDto
+                {
+                    Id = l.Id,
+                    CanvasItem = new CanvasItemDto
+                    {
+                        Id = l.CanvasItem.Id,
+                        Name = l.CanvasItem.Name,
+                        PixelData = l.CanvasItem.PixelData
+                    },
+                    CurrentBid = l.Bids.Max(b => b.Amount),
+                    MinimumPrice = l.MinimumPrice,
+                    EndTime = l.EndTime
+                }).ToList()
+            });
         }
     }
 }

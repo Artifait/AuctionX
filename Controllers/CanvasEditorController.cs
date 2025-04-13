@@ -34,7 +34,7 @@ namespace AucX.WebUI.Controllers
             return View(new CanvasEditorViewModel
             {
                 UserColors = colors.ToList(),
-                Tools = new List<string> { "Кисть", "Заливка" },
+                Tools = new List<string> { "brush", "Заливка" },
                 MaxWidth = user.MaxCanvasWidth,
                 MaxHeight = user.MaxCanvasHeight
             });

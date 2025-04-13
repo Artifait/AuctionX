@@ -30,8 +30,10 @@ builder.Services.AddIdentity<AppUser, IdentityRole>(options =>
 builder.Services.AddScoped<ICanvasItemRepository, CanvasItemRepository>();
 builder.Services.AddScoped<IUserColorRepository, UserColorRepository>();
 builder.Services.AddScoped<IBannedUserRepository, BannedUserRepository>();
+builder.Services.AddScoped<IAuctionService, AuctionService>();
+builder.Services.AddScoped<IBalanceService, BalanceService>();
 
-builder.Services.AddControllersWithViews()    
+builder.Services.AddControllersWithViews()      
     .AddJsonOptions(options => 
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = null;

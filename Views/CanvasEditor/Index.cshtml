@@ -302,7 +302,19 @@ document.getElementById('toolSelect').addEventListener('change', (e) => {
     document.getElementById('saveBtn').addEventListener('click', saveCanvas);
 
     // Обработчики рисования
-    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.floor((e.clientX - rect.left) / pixelSize);
+        const y = Math.floor((e.clientY - rect.top) / pixelSize);
+
+        if (currentTool === 'заливка') {
+            if (currentColor) {
+                floodFill(x, y, currentColor);
+            }
+        } else {
+            startDrawing(e);
+        }
+    });
     canvas.addEventListener('mousemove', draw);
     canvas.addEventListener('mouseup', stopDrawing);
     canvas.addEventListener('mouseleave', () => {

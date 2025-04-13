@@ -10,8 +10,12 @@ namespace AucX.DataAccess.Context
             : base(options)
         {
         }
-
+        // Добавляем новые DbSet
+        public DbSet<AuctionLot> AuctionLots { get; set; }
+        public DbSet<Bid> Bids { get; set; }
+        public DbSet<FrozenFunds> FrozenFunds { get; set; }
         public DbSet<BannedUser> BannedUsers { get; set; }
+
         // Таблица для хранения купленных цветов
         public DbSet<UserColor> UserColors { get; set; }
 
@@ -33,6 +37,21 @@ namespace AucX.DataAccess.Context
             builder.Entity<CanvasItem>()
                    .HasIndex(c => new { c.UserId, c.Width, c.Height, c.PixelData })
                    .IsUnique();
+
+            builder.Entity<AuctionLot>()
+                    .HasOne(al => al.CanvasItem)
+                    .WithMany()
+                    .HasForeignKey(al => al.CanvasItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+            // Конфигурация Bid
+            builder.Entity<Bid>()
+                    .HasIndex(b => new { b.LotId, b.BidTime })
+                    .IsDescending(false, true);
+                    
+            // Конфигурация FrozenFunds
+            builder.Entity<FrozenFunds>()
+                .HasIndex(ff => ff.UserId);
         }
     }
 }

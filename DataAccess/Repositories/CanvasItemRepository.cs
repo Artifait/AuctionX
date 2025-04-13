@@ -12,6 +12,7 @@ namespace AucX.DataAccess.Repositories
         Task<CanvasItem?> GetCanvasItemByUserAndNameAsync(string userId, string name);
         Task AddCanvasItemAsync(CanvasItem canvasItem);
         Task SaveAsync();
+        Task<IEnumerable<CanvasItem>> GetUserCanvasItemsAsync(string userId);
     }
 
     public class CanvasItemRepository : ICanvasItemRepository
@@ -50,6 +51,17 @@ namespace AucX.DataAccess.Repositories
         public async Task SaveAsync()
         {
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<CanvasItem>> GetUserCanvasItemsAsync(string userId)
+        {
+            // Получаем холсты пользователя, не участвующие в активных аукционах
+            return await _context.CanvasItems
+                .Where(c => c.UserId == userId &&
+                        !_context.AuctionLots.Any(al => 
+                            al.CanvasItemId == c.Id && 
+                            al.Status == AuctionLotStatus.Active))
+                .ToListAsync();
         }
     }
 }

@@ -1,44 +1,251 @@
-﻿@model AucX.Domain.Entities.AppUser
+﻿@using AucX.WebUI.Models
+@model ProfileViewModel
 
-@{
-    ViewData["Title"] = "Профиль";
+<div class="profile-container">
+    <!-- Блок информации о пользователе -->
+    <div class="user-info-section">
+        <div class="avatar" id="userAvatar" data-username="@Model.UserName"></div>
+        <div class="user-details">
+            <div class="detail-item">
+                <label>Логин:</label>
+                <span>@Model.UserName</span>
+                <button class="btn-edit" onclick="showComingSoon()">✎</button>
+            </div>
+            <div class="detail-item">
+                <label>Почта:</label>
+                <span>@Model.Email</span>
+                <button class="btn-edit" onclick="showComingSoon()">✎</button>
+            </div>
+            <div class="detail-item">
+                <label>Пароль:</label>
+                <span>•••••••</span>
+                <button class="btn-edit" onclick="showComingSoon()">✎</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Блок с пиксель-артами -->
+    <div class="art-collection">
+        <h3>Ваши работы</h3>
+        <div class="art-grid">
+            @foreach (var art in Model.UserCanvasItems)
+            {
+                <div class="art-thumbnail" data-canvas-id="@art.Id">
+                    <canvas class="pixel-art"></canvas>
+                    <div class="art-info">@art.Name</div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Блок аукционов -->
+    <div class="auction-section">
+        <h3>Активные лоты</h3>
+        <div class="auction-grid">
+            @foreach (var lot in Model.AuctionLots)
+            {
+                <div class="auction-card @(lot.CurrentBid >= lot.MinimumPrice ? "valid-bid" : "invalid-bid")">
+                    <div class="auction-thumbnail">
+                        <canvas class="pixel-art" data-pixels="@lot.CanvasItem.PixelData"></canvas>
+                    </div>
+                    <div class="auction-info">
+                        <div class="auction-timer" data-end="@lot.EndTime.ToString("o")">
+                            @if (lot.EndTime > DateTime.UtcNow)
+                            {
+                                <span class="time-remaining"></span>
+                            }
+                            else
+                            {
+                                <span class="ended">Торги закрыты</span>
+                            }
+                        </div>
+                        <div class="current-bid">Текущая ставка: @lot.CurrentBid.ToString("N0")</div>
+                        <div class="minimum-price">Минимум: @lot.MinimumPrice.ToString("N0")</div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+.profile-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-<h2>Профиль пользователя</h2>
+.user-info-section {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 30px;
+    margin-bottom: 40px;
+}
 
-<div class="card mb-3">
-    <div class="card-body">
-        <p><strong>ФИО:</strong> @Model.FullName</p>
-        <p><strong>Email:</strong> @Model.Email</p>
-        <p><strong>Баланс:</strong> @Model.Balance</p>
-    </div>
-</div>
+.avatar {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3em;
+    color: white;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+}
 
-<div class="card mb-3">
-    <div class="card-body">
-        <h4>Улучшение холста</h4>
-        <p>
-            <strong>Текущая ширина:</strong> @ViewBag.CurrentCanvasWidth
-        </p>
-        <p>
-            <strong>Текущая высота:</strong> @ViewBag.CurrentCanvasHeight
-        </p>
-        <p>
-            <strong>Стоимость улучшения:</strong> @ViewBag.CanvasUpgradePrice
-        </p>
+.user-details {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
 
-        @if (TempData["Error"] != null)
-        {
-            <div class="alert alert-danger">@TempData["Error"]</div>
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1em;
+}
+
+.btn-edit {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    padding: 5px;
+}
+
+.art-collection, .auction-section {
+    margin-bottom: 40px;
+}
+
+.art-grid, .auction-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.art-thumbnail, .auction-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+
+.art-thumbnail:hover, .auction-card:hover {
+    transform: translateY(-5px);
+}
+
+.pixel-art {
+    width: 100%;
+    height: 200px;
+    image-rendering: pixelated;
+}
+
+.auction-card {
+    position: relative;
+}
+
+.auction-card.valid-bid {
+    border: 2px solid #4CAF50;
+}
+
+.auction-card.invalid-bid {
+    border: 2px solid #f44336;
+}
+
+.auction-info {
+    padding: 15px;
+}
+
+.auction-timer {
+    font-weight: bold;
+    color: #666;
+}
+
+.time-remaining {
+    color: #2196F3;
+}
+
+.ended {
+    color: #f44336;
+}
+</style>
+
+@section Scripts {
+<script>
+// Генерация аватара
+function generateAvatar() {
+    const avatar = document.getElementById('userAvatar');
+    const username = avatar.dataset.username;
+    
+    // Генерация стабильного хэша
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+        hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    
+    // Генерация цветов
+    const color1 = `hsl(${hash % 360}, 70%, 50%)`;
+    const color2 = `hsl(${(hash + 150) % 360}, 70%, 50%)`;
+    
+    // Инициалы
+    const initials = username.slice(0, 2).toUpperCase();
+    
+    avatar.style.background = `linear-gradient(135deg, ${color1}, ${color2})`;
+    avatar.textContent = initials;
+}
+
+// Таймеры для аукционов
+function updateTimers() {
+    document.querySelectorAll('.auction-timer').forEach(timer => {
+        const endTime = new Date(timer.dataset.end);
+        const now = new Date();
+        
+        if (endTime > now) {
+            const diff = endTime - now;
+            const hours = Math.floor(diff / 3600000);
+            const minutes = Math.floor((diff % 3600000) / 60000);
+            timer.querySelector('.time-remaining').textContent = 
+                `${hours}ч ${minutes}м`;
         }
-        @if (TempData["Success"] != null)
-        {
-            <div class="alert alert-success">@TempData["Success"]</div>
-        }
+    });
+}
 
-        <form asp-action="UpgradeCanvas" method="post">
-            @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-primary">Купить улучшение</button>
-        </form>
-    </div>
-</div>
+// Отрисовка пиксель-артов
+function renderPixelArts() {
+    document.querySelectorAll('.pixel-art').forEach(canvas => {
+        const pixels = canvas.dataset.pixels?.split(';').map(row => row.split(','));
+        if (!pixels) return;
+
+        const ctx = canvas.getContext('2d');
+        const size = Math.max(pixels.length, pixels[0]?.length || 0);
+        
+        canvas.width = size;
+        canvas.height = size;
+        
+        pixels.forEach((row, y) => {
+            row.forEach((color, x) => {
+                ctx.fillStyle = color;
+                ctx.fillRect(x, y, 1, 1);
+            });
+        });
+    });
+}
+
+// Временная функция
+function showComingSoon() {
+    alert('Этот функционал находится в разработке!');
+}
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', () => {
+    generateAvatar();
+    renderPixelArts();
+    updateTimers();
+    setInterval(updateTimers, 60000);
+});
+</script>
+}
