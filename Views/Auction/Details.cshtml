@@ -1,0 +1,221 @@
+﻿@model AucX.WebUI.Models.AuctionLotViewModel
+@{
+    ViewData["Title"] = Model.CanvasItem.Name;
+}
+
+<div class="profile-container">
+    <div class="auction-header">
+        <h1>@Model.CanvasItem.Name</h1>
+        <div class="auction-meta">
+            <div class="time-left" data-end="@Model.EndTime.ToString("o")">
+                @if (Model.TimeLeft.TotalSeconds > 0)
+                {
+                    <span class="time-remaining"></span>
+                }
+                else
+                {
+                    <span class="ended">Аукцион завершен</span>
+                }
+            </div>
+            <div class="minimum-price">Минимальная цена: @Model.MinimumPrice.ToString("N0")</div>
+        </div>
+    </div>
+
+    <div class="auction-content">
+        <div class="canvas-preview">
+            <canvas id="mainCanvas" data-pixels="@Model.CanvasItem.PixelData" data-width="@Model.CanvasItem.Width"
+                data-height="@Model.CanvasItem.Height"></canvas>
+        </div>
+
+        <div class="auction-details">
+            <div class="bid-section">
+                <div class="current-bid">
+                    <h3>Текущая ставка: @Model.CurrentBid.ToString("N0")</h3>
+                    <div class="min-increment">Минимальный шаг: @Model.MinBidIncrement.ToString("N0")</div>
+                </div>
+
+                @if (!Model.IsOwner && Model.TimeLeft.TotalSeconds > 0)
+                {
+                    <form asp-action="PlaceBid" asp-route-id="@Model.Id" method="post" class="bid-form">
+                        @Html.AntiForgeryToken()
+                        <input type="number" name="amount" step="@Model.MinBidIncrement"
+                            min="@(Model.CurrentBid + Model.MinBidIncrement)" placeholder="Сумма ставки" required />
+                        <button type="submit" class="btn-bid">Сделать ставку</button>
+                    </form>
+                }
+            </div>
+
+            <div class="bid-history">
+                <h3>История ставок</h3>
+                @foreach (var bid in Model.Bids)
+                {
+                    <div class="bid-item">
+                        <div class="bid-user">@bid.UserName</div>
+                        <div class="bid-amount">@bid.Amount.ToString("N0")</div>
+                        <div class="bid-time">@bid.BidTime.ToString("dd.MM.yy HH:mm")</div>
+                    </div>
+                }
+            </div>
+
+            @if (Model.IsOwner)
+            {
+                <form asp-action="CancelAuction" asp-route-id="@Model.Id" method="post" class="cancel-form">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn-cancel">Отменить аукцион</button>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .auction-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+
+    .auction-meta {
+        text-align: right;
+    }
+
+    .time-remaining {
+        color: #2196F3;
+        font-weight: bold;
+    }
+
+    .ended {
+        color: #f44336;
+    }
+
+    .auction-content {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 40px;
+    }
+
+    .canvas-preview {
+        border: 2px solid #eee;
+        border-radius: 8px;
+        padding: 15px;
+        background: #f8f8f8;
+    }
+
+    #mainCanvas {
+        width: 100%;
+        image-rendering: pixelated;
+    }
+
+    .auction-details {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .bid-form {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .bid-form input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .btn-bid {
+        padding: 8px 20px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .bid-history {
+        margin-top: 30px;
+        border-top: 1px solid #eee;
+        padding-top: 20px;
+    }
+
+    .bid-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #f8f8f8;
+    }
+
+    .btn-cancel {
+        width: 100%;
+        margin-top: 20px;
+        padding: 10px;
+        background: #f44336;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCanvas();
+            startTimer();
+        });
+
+        function renderCanvas() {
+            const canvas = document.getElementById('mainCanvas');
+            const pixelData = canvas.dataset.pixels;
+            const width = parseInt(canvas.dataset.width);
+            const height = parseInt(canvas.dataset.height);
+
+            if (!pixelData || width <= 0 || height <= 0) return;
+
+            const ctx = canvas.getContext('2d');
+            canvas.width = width;
+            canvas.height = height;
+
+            const colors = pixelData.split(';').filter(c => c);
+
+            for (let i = 0; i < colors.length; i++) {
+                const x = i % width;
+                const y = Math.floor(i / width);
+                if (y >= height) break;
+
+                ctx.fillStyle = colors[i] || '#FFFFFF';
+                ctx.fillRect(x, y, 1, 1);
+            }
+        }
+
+        function startTimer() {
+            const endTime = new Date("@Model.EndTime.ToString("o")");
+            const timerElement = document.querySelector('.time-remaining');
+
+            function update() {
+                const now = new Date();
+                const diff = endTime - now;
+
+                if (diff <= 0) {
+                    if (timerElement) timerElement.textContent = "Аукцион завершен";
+                    return;
+                }
+
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+
+                if (timerElement) {
+                    timerElement.textContent = `${hours}ч ${minutes}м ${seconds}с`;
+                }
+            }
+
+            setInterval(update, 1000);
+            update();
+        }
+    </script>
+}

@@ -1,0 +1,88 @@
+﻿@model AucX.WebUI.Models.CreateAuctionViewModel
+
+@{
+    ViewData["Title"] = "Создать лот    ";
+}
+
+<div class="auction-page-container">
+    <h2>Выставить работу на аукцион</h2>
+
+    @* Покажем ошибки валидации *@
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <form asp-action="CreateAuction" asp-controller="Canvas" asp-route-id="@Model.CanvasItemId" method="post"
+        class="auction-form">
+        <input type="hidden" asp-for="CanvasItemId" />
+
+        <div class="form-group">
+            <label asp-for="StartingPrice">Начальная цена</label>
+            <input asp-for="StartingPrice" class="form-control" />
+            <span asp-validation-for="StartingPrice" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="MinimumPrice">Минимальная цена продажи</label>
+            <input asp-for="MinimumPrice" class="form-control" />
+            <span asp-validation-for="MinimumPrice" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="MinBidIncrement">Минимальный шаг ставки</label>
+            <input asp-for="MinBidIncrement" class="form-control" />
+            <span asp-validation-for="MinBidIncrement" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="EndTime">Дата и время окончания аукциона</label>
+            <input asp-for="EndTime" type="datetime-local" class="form-control"
+                min="@DateTime.Now.AddHours(24).ToString("yyyy-MM-ddTHH:mm")" />
+            <span asp-validation-for="EndTime" class="text-danger"></span>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Создать аукцион</button>
+        <a asp-action="Details" asp-route-id="@Model.CanvasItemId" class="btn btn-secondary ml-2">Отмена</a>
+    </form>
+</div>
+
+<style>
+    .auction-page-container {
+        max-width: 600px;
+        margin: 2rem auto;
+        padding: 1rem;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        background: #fafafa;
+    }
+
+    .auction-page-container h2 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .text-danger {
+        font-size: 0.9em;
+    }
+
+    .btn-secondary {
+        background: #ccc;
+        color: #333;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        text-decoration: none;
+    }
+
+    .btn-secondary:hover {
+        background: #bbb;
+    }
+</style>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

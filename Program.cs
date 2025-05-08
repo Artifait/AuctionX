@@ -1,6 +1,7 @@
 using AucX.DataAccess.Context;
 using AucX.DataAccess.Repositories;
 using AucX.Domain.Entities;
+using AucX.WebUI.Components;
 using AucX.WebUI.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,8 @@ builder.Services.AddScoped<IUserColorRepository, UserColorRepository>();
 builder.Services.AddScoped<IBannedUserRepository, BannedUserRepository>();
 builder.Services.AddScoped<IAuctionService, AuctionService>();
 builder.Services.AddScoped<IBalanceService, BalanceService>();
+builder.Services.AddHostedService<AuctionBackgroundService>();
+builder.Services.AddTransient<BalanceViewComponent>();
 
 builder.Services.AddControllersWithViews()      
     .AddJsonOptions(options => 

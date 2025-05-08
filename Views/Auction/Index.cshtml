@@ -1,0 +1,149 @@
+﻿@model AucX.WebUI.Models.AuctionIndexViewModel
+@{
+    ViewData["Title"] = "Активные аукционы";
+}
+
+<div class="profile-container">
+    <h1>Аукцион</h1>
+
+    <div class="auction-grid">
+        @foreach (var lot in Model.Lots)
+        {
+            <a asp-action="Details" asp-route-id="@lot.Id" class="auction-card">
+                <div class="auction-thumbnail" style="aspect-ratio: @lot.CanvasItem.Width / @lot.CanvasItem.Height;">
+                    <canvas class="pixel-art" data-pixels="@lot.CanvasItem.PixelData" data-width="@lot.CanvasItem.Width"
+                        data-height="@lot.CanvasItem.Height"></canvas>
+                </div>
+                <div class="auction-info">
+                    <h4>@lot.CanvasItem.Name</h4>
+                    <div class="current-bid">@lot.CurrentBid.ToString("N0")</div>
+                    <div class="auction-timer" data-end="@lot.EndTime.ToString("o")">
+                        @if (lot.EndTime > DateTime.UtcNow)
+                        {
+                            <span class="time-remaining"></span>
+                        }
+                        else
+                        {
+                            <span class="ended">Завершен</span>
+                        }
+                    </div>
+                </div>
+            </a>
+        }
+    </div>
+
+    @if (Model.TotalCount > Model.PageSize)
+    {
+        <div class="pagination">
+            @if (Model.Page > 1)
+            {
+                <a asp-action="Index" asp-route-page="@(Model.Page - 1)" class="btn-prev">Назад</a>
+            }
+            <span class="page-current">Страница @Model.Page</span>
+            @if (Model.Page * Model.PageSize < Model.TotalCount)
+            {
+                <a asp-action="Index" asp-route-page="@(Model.Page + 1)" class="btn-next">Вперед</a>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .pagination {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 30px;
+    }
+
+    .btn-prev,
+    .btn-next {
+        padding: 8px 16px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #333;
+    }
+
+    .page-current {
+        align-self: center;
+    }
+
+    .auction-card {
+        border: 1px solid #eee;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.2s;
+    }
+
+    .auction-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .auction-info {
+        padding: 15px;
+        background: white;
+    }
+
+    .auction-info h4 {
+        margin: 0 0 8px 0;
+        font-size: 1.1em;
+    }
+
+    .current-bid {
+        color: #4CAF50;
+        font-weight: bold;
+        font-size: 1.2em;
+        margin-bottom: 8px;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPixelArts();
+            updateTimers();
+            setInterval(updateTimers, 60000);
+        });
+
+        function renderPixelArts() {
+            document.querySelectorAll('.pixel-art').forEach(canvas => {
+                const pixelData = canvas.dataset.pixels;
+                const width = parseInt(canvas.dataset.width);
+                const height = parseInt(canvas.dataset.height);
+
+                if (!pixelData || width <= 0 || height <= 0) return;
+
+                const ctx = canvas.getContext('2d');
+                canvas.width = width;
+                canvas.height = height;
+
+                const colors = pixelData.split(';').filter(c => c);
+
+                for (let i = 0; i < colors.length; i++) {
+                    const x = i % width;
+                    const y = Math.floor(i / width);
+                    if (y >= height) break;
+
+                    ctx.fillStyle = colors[i] || '#FFFFFF';
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            });
+        }
+
+        function updateTimers() {
+            document.querySelectorAll('.auction-timer').forEach(timer => {
+                const endTime = new Date(timer.dataset.end);
+                const now = new Date();
+
+                if (endTime > now) {
+                    const diff = endTime - now;
+                    const hours = Math.floor(diff / 3600000);
+                    const minutes = Math.floor((diff % 3600000) / 60000);
+                    timer.querySelector('.time-remaining').textContent = `${hours}ч ${minutes}м`;
+                }
+            });
+        }
+    </script>
+}

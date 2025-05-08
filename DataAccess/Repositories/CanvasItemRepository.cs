@@ -12,6 +12,7 @@ namespace AucX.DataAccess.Repositories
         Task<CanvasItem?> GetCanvasItemByUserAndNameAsync(string userId, string name);
         Task AddCanvasItemAsync(CanvasItem canvasItem);
         Task SaveAsync();
+        Task<bool> IsItemInAuctionAsync(int canvasItemId);
         Task<IEnumerable<CanvasItem>> GetUserCanvasItemsAsync(string userId);
     }
 
@@ -29,6 +30,13 @@ namespace AucX.DataAccess.Repositories
             return await _context.CanvasItems.FindAsync(id);
         }
 
+        public async Task<bool> IsItemInAuctionAsync(int canvasItemId)
+        {
+            return await _context.AuctionLots
+                .AnyAsync(al => al.CanvasItemId == canvasItemId
+                    && al.Status == AuctionLotStatus.Active);
+        }
+
         public async Task<CanvasItem?> GetCanvasItemByUserAndNameAsync(string userId, string name)
         {
             return await _context.CanvasItems
@@ -39,12 +47,12 @@ namespace AucX.DataAccess.Repositories
         public async Task AddCanvasItemAsync(CanvasItem canvasItem)
         {
             bool exists = await _context.CanvasItems
-                .AnyAsync(c => c.Width == canvasItem.Width 
+                .AnyAsync(c => c.Width == canvasItem.Width
                             && c.Height == canvasItem.Height
                             && c.PixelData == canvasItem.PixelData);
 
             if (exists) throw new InvalidOperationException("Холст уже существует");
-            
+
             _context.CanvasItems.Add(canvasItem);
         }
 
@@ -58,8 +66,8 @@ namespace AucX.DataAccess.Repositories
             // Получаем холсты пользователя, не участвующие в активных аукционах
             return await _context.CanvasItems
                 .Where(c => c.UserId == userId &&
-                        !_context.AuctionLots.Any(al => 
-                            al.CanvasItemId == c.Id && 
+                        !_context.AuctionLots.Any(al =>
+                            al.CanvasItemId == c.Id &&
                             al.Status == AuctionLotStatus.Active))
                 .ToListAsync();
         }

@@ -3,6 +3,7 @@ using AucX.DataAccess.Context;
 using AucX.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using AucX.WebUI.DTO;
 
 namespace AucX.WebUI.Infrastructure;
 
@@ -14,6 +15,10 @@ public interface IAuctionService
     Task CancelBidAsync(int bidId, string userId);
     Task CompleteAuctionAsync(int lotId);
     Task<IEnumerable<AuctionLot>> GetUserActiveLotsAsync(string userId);
+
+    Task CancelAuctionAsync(int lotId, string userId);
+    Task<IEnumerable<AuctionLot>> GetActiveAuctionsAsync(int page, int pageSize);
+    Task<AuctionLotDetailsDto> GetAuctionDetailsAsync(int lotId);
 }
 
 public class AuctionService : IAuctionService
@@ -32,8 +37,25 @@ public class AuctionService : IAuctionService
         return await _balanceService.GetAvailableBalanceAsync(userId);
     }
 
-    public async Task<AuctionLot> CreateAuctionLotAsync(int canvasItemId, decimal minPrice, decimal startPrice, decimal minIncrement, DateTime endTime)
+    public async Task<AuctionLot> CreateAuctionLotAsync(
+        int canvasItemId,
+        decimal minPrice,
+        decimal startPrice,
+        decimal minIncrement,
+        DateTime endTime)
     {
+        if (await _context.AuctionLots.AnyAsync(al =>
+            al.CanvasItemId == canvasItemId &&
+            al.Status == AuctionLotStatus.Active))
+        {
+            throw new InvalidOperationException("Этот холст уже участвует в активном аукционе");
+        }
+
+        if (endTime < DateTime.UtcNow.AddHours(24))
+        {
+            throw new InvalidOperationException("Аукцион должен длиться минимум 24 часа");
+        }
+
         var lot = new AuctionLot
         {
             CanvasItemId = canvasItemId,
@@ -45,6 +67,7 @@ public class AuctionService : IAuctionService
 
         await _context.AuctionLots.AddAsync(lot);
         await _context.SaveChangesAsync();
+
         return lot;
     }
 
@@ -52,7 +75,7 @@ public class AuctionService : IAuctionService
     {
         // Явно создаем транзакцию с уровнем изоляции
         using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
-        
+
         try
         {
             var lot = await _context.AuctionLots
@@ -80,12 +103,12 @@ public class AuctionService : IAuctionService
                 BidTime = DateTime.UtcNow
             };
 
-            // Заморозка средств
-            await _balanceService.FreezeFundsAsync(userId, amount, bid.Id);
-
             // Добавление ставки
             await _context.Bids.AddAsync(bid);
             await _context.SaveChangesAsync();
+
+            // Заморозка средств
+            await _balanceService.FreezeFundsAsync(userId, amount, bid.Id);
 
             // Возврат предыдущей ставки
             if (lastBid != null)
@@ -157,16 +180,73 @@ public class AuctionService : IAuctionService
         lot.Status = AuctionLotStatus.Completed;
         await _context.SaveChangesAsync();
     }
-    
+
     public async Task<IEnumerable<AuctionLot>> GetUserActiveLotsAsync(string userId)
     {
         return await _context.AuctionLots
             .Include(al => al.CanvasItem)
             .Include(al => al.Bids)
-            .Where(al => al.CanvasItem.UserId == userId && 
+            .Where(al => al.CanvasItem.UserId == userId &&
                         al.Status == AuctionLotStatus.Active &&
                         al.EndTime > DateTime.UtcNow)
             .OrderByDescending(al => al.EndTime)
             .ToListAsync();
+    }
+
+    public async Task CancelAuctionAsync(int lotId, string userId)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync();
+
+        var lot = await _context.AuctionLots
+            .Include(al => al.CanvasItem)
+            .Include(al => al.Bids)
+            .FirstOrDefaultAsync(al => al.Id == lotId);
+
+        if (lot?.CanvasItem.UserId != userId || lot?.Status != AuctionLotStatus.Active)
+            throw new InvalidOperationException("Cannot cancel auction");
+
+        lot.Status = AuctionLotStatus.Cancelled;
+
+        foreach (var bid in lot.Bids)
+        {
+            await _balanceService.UnfreezeFundsAsync(bid.UserId, bid.Amount, bid.Id);
+        }
+
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+    }
+
+    public async Task<IEnumerable<AuctionLot>> GetActiveAuctionsAsync(int page, int pageSize)
+    {
+        return await _context.AuctionLots
+            .Include(al => al.CanvasItem)
+            .Include(al => al.Bids)
+            .Where(al => al.Status == AuctionLotStatus.Active)
+            .OrderBy(al => al.EndTime)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+    }
+
+    public async Task<AuctionLotDetailsDto> GetAuctionDetailsAsync(int lotId)
+    {
+        var lot = await _context.AuctionLots
+            .Include(al => al.CanvasItem)
+            .Include(al => al.Bids)
+                .ThenInclude(b => b.User)
+            .FirstOrDefaultAsync(al => al.Id == lotId);
+
+        if (lot == null) return null;
+
+        var currentPrice = lot.Bids.Any()
+            ? lot.Bids.Max(b => b.Amount)
+            : lot.StartingPrice;
+
+        return new AuctionLotDetailsDto
+        {
+            Lot = lot,
+            CurrentPrice = currentPrice,
+            TimeLeft = lot.EndTime - DateTime.UtcNow
+        };
     }
 }

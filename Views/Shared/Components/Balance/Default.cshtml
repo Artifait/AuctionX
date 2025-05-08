@@ -1,0 +1,37 @@
+﻿@model AucX.WebUI.Components.BalanceViewModel
+
+<div class="balance-container">
+    <div class="balance-item">
+        <span class="balance-label">Баланс:</span>
+        <span class="balance-value">@Model.Balance.ToString("N0")</span>
+    </div>
+    <div class="balance-item">
+        <span class="balance-label">Заморожено:</span>
+        <span class="balance-value">@Model.FrozenBalance.ToString("N0")</span>
+    </div>
+</div>
+
+<style>
+    .balance-container {
+        display: flex;
+        gap: 1.5rem;
+        margin-right: 2rem;
+        align-items: center;
+    }
+
+    .balance-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .balance-label {
+        font-size: 0.8rem;
+        color: #666;
+    }
+
+    .balance-value {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+</style>

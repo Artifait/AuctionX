@@ -1,0 +1,210 @@
+﻿@model AucX.WebUI.Models.CanvasItemDetailsViewModel
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<div class="canvas-details-container">
+    @if (TempData["AuctionSuccess"] != null)
+    {
+        <div class="alert alert-success mt-3">
+            @TempData["AuctionSuccess"]
+        </div>
+    }
+
+    @if (TempData["AuctionError"] != null)
+    {
+        <div class="alert alert-danger mt-3">
+            @TempData["AuctionError"]
+        </div>
+    }
+
+    <div class="canvas-header">
+        <h1>@Model.Name</h1>
+        <div class="canvas-meta">
+            <span>Автор: @Model.AuthorId</span>
+            <span>Создан: @Model.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+            <span>Размер: @Model.Width x @Model.Height</span>
+        </div>
+    </div>
+
+    <div class="canvas-preview-wrapper">
+        <canvas id="mainCanvas" data-pixels="@Model.PixelData" data-width="@Model.Width"
+            data-height="@Model.Height"></canvas>
+    </div>
+
+    <div class="canvas-actions">
+        <button class="btn-download" onclick="downloadCanvas()">Скачать PNG</button>
+    </div>
+
+    @if (Model.IsOwner)
+    {
+        <div class="owner-actions">
+            @if (Model.CanBeAuctioned)
+            {
+                <div class="auction-form">
+                    <h3>Выставить на аукцион</h3>
+                    <form asp-action="Details" asp-route-id="@Model.Id" method="post">
+                        <input type="hidden" asp-for="AuctionForm.CanvasItemId" />
+
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+                        <div class="form-group">
+                            <label asp-for="AuctionForm.StartingPrice">Начальная цена</label>
+                            <input asp-for="AuctionForm.StartingPrice" class="form-control" />
+                            <span asp-validation-for="AuctionForm.StartingPrice" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="AuctionForm.MinimumPrice">Минимальная цена продажи</label>
+                            <input asp-for="AuctionForm.MinimumPrice" class="form-control" />
+                            <span asp-validation-for="AuctionForm.MinimumPrice" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="AuctionForm.MinBidIncrement">Минимальный шаг ставки</label>
+                            <input asp-for="AuctionForm.MinBidIncrement" class="form-control" />
+                            <span asp-validation-for="AuctionForm.MinBidIncrement" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="AuctionForm.EndTime">Дата окончания аукциона</label>
+                            <input asp-for="AuctionForm.EndTime" type="datetime-local" class="form-control"
+                                min="@DateTime.Now.AddHours(24).ToString("yyyy-MM-ddTHH:mm")" />
+                            <span asp-validation-for="AuctionForm.EndTime" class="text-danger"></span>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Создать аукцион</button>
+                    </form>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info mt-3">
+                    Эта работа уже участвует в активном аукционе
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .canvas-details-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 20px;
+    }
+
+    .canvas-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .canvas-meta {
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+        color: #666;
+        margin-top: 1rem;
+    }
+
+    .canvas-preview-wrapper {
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        background: #f8f8f8;
+    }
+
+    #mainCanvas {
+        width: 100%;
+        image-rendering: pixelated;
+        max-width: 600px;
+        margin: 0 auto;
+        display: block;
+    }
+
+    .canvas-actions {
+        margin-top: 2rem;
+        text-align: center;
+    }
+
+    .btn-download {
+        padding: 10px 20px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+
+    .btn-download:hover {
+        background: #45a049;
+    }
+
+    .owner-actions {
+        margin-top: 40px;
+        padding: 20px;
+        border-top: 1px solid #eee;
+    }
+
+    .auction-form {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+
+    .btn-primary {
+        background: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .text-danger {
+        color: #f44336;
+        font-size: 0.9em;
+    }
+</style>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script>
+        document.addEventListener('DOMContentLoaded', renderCanvas);
+
+        function renderCanvas() {
+            const canvas = document.getElementById('mainCanvas');
+            const colors = canvas.dataset.pixels.split(';').filter(c => c);
+            const w = +canvas.dataset.width, h = +canvas.dataset.height;
+            if (!colors.length || w <= 0 || h <= 0) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = w; canvas.height = h;
+            colors.forEach((col, i) => {
+                const x = i % w, y = (i / w) | 0;
+                ctx.fillStyle = col || '#fff';
+                ctx.fillRect(x, y, 1, 1);
+            });
+        }
+
+        function downloadCanvas() {
+            const canvas = document.getElementById('mainCanvas');
+            const link = document.createElement('a');
+            link.download = `${@Html.Raw($"\"{Model.Name.Replace(" ", "_")}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}\"")}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+}

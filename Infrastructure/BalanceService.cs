@@ -8,6 +8,8 @@ namespace AucX.WebUI.Infrastructure;
 public interface IBalanceService
 {
     Task<decimal> GetAvailableBalanceAsync(string userId);
+    Task<decimal> GetFrozenBalanceAsync(string userId);
+    Task<decimal> GetBalanceAsync(string userId);
     Task FreezeFundsAsync(string userId, decimal amount, int bidId);
     Task UnfreezeFundsAsync(string userId, decimal amount, int bidId);
     Task TransferFundsAsync(string fromUserId, string toUserId, decimal amount);
@@ -30,6 +32,23 @@ public class BalanceService : IBalanceService
             .SumAsync(ff => ff.Amount);
 
         return user!.Balance - frozen;
+    }
+
+    public async Task<decimal> GetBalanceAsync(string userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+
+        return user!.Balance;
+    }
+
+    public async Task<decimal> GetFrozenBalanceAsync(string userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        var frozen = await _context.FrozenFunds
+            .Where(ff => ff.UserId == userId)
+            .SumAsync(ff => ff.Amount);
+
+        return frozen;
     }
 
     public async Task FreezeFundsAsync(string userId, decimal amount, int bidId)

@@ -30,10 +30,14 @@
         <div class="art-grid">
             @foreach (var art in Model.UserCanvasItems)
             {
-                <div class="art-thumbnail" data-canvas-id="@art.Id">
-                    <canvas class="pixel-art"></canvas>
+                <a asp-controller="Canvas" asp-action="Details" asp-route-id="@art.Id" class="art-thumbnail" 
+                style="aspect-ratio: @art.Width / @art.Height;">
+                    <canvas class="pixel-art"
+                            data-pixels="@art.PixelData"
+                            data-width="@art.Width"
+                            data-height="@art.Height"></canvas>
                     <div class="art-info">@art.Name</div>
-                </div>
+                </a>
             }
         </div>
     </div>
@@ -45,8 +49,12 @@
             @foreach (var lot in Model.AuctionLots)
             {
                 <div class="auction-card @(lot.CurrentBid >= lot.MinimumPrice ? "valid-bid" : "invalid-bid")">
-                    <div class="auction-thumbnail">
-                        <canvas class="pixel-art" data-pixels="@lot.CanvasItem.PixelData"></canvas>
+                    <div class="auction-thumbnail" 
+                        style="aspect-ratio: @lot.CanvasItem.Width / @lot.CanvasItem.Height;">
+                        <canvas class="pixel-art"
+                                data-pixels="@lot.CanvasItem.PixelData"
+                                data-width="@lot.CanvasItem.Width"
+                                data-height="@lot.CanvasItem.Height"></canvas>
                     </div>
                     <div class="auction-info">
                         <div class="auction-timer" data-end="@lot.EndTime.ToString("o")">
@@ -120,27 +128,34 @@
     margin-bottom: 40px;
 }
 
+/* Для сеток */
 .art-grid, .auction-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 20px;
-    margin-top: 20px;
 }
 
-.art-thumbnail, .auction-card {
-    border: 1px solid #ddd;
-    border-radius: 8px;
+.art-thumbnail, .auction-thumbnail {
+    position: relative;
     overflow: hidden;
-    transition: transform 0.2s;
+    border-radius: 8px;
+    background: #f8f8f8;
 }
 
 .art-thumbnail:hover, .auction-card:hover {
     transform: translateY(-5px);
 }
 
+.canvas-wrapper {
+    width: 100%;
+    max-height: 200px;
+    overflow: hidden;
+    background: #f5f5f5;
+}
+
 .pixel-art {
     width: 100%;
-    height: 200px;
+    height: 100%;
     image-rendering: pixelated;
 }
 
@@ -181,21 +196,47 @@ function generateAvatar() {
     const avatar = document.getElementById('userAvatar');
     const username = avatar.dataset.username;
     
-    // Генерация стабильного хэша
     let hash = 0;
     for (let i = 0; i < username.length; i++) {
         hash = username.charCodeAt(i) + ((hash << 5) - hash);
     }
     
-    // Генерация цветов
     const color1 = `hsl(${hash % 360}, 70%, 50%)`;
     const color2 = `hsl(${(hash + 150) % 360}, 70%, 50%)`;
     
-    // Инициалы
     const initials = username.slice(0, 2).toUpperCase();
     
     avatar.style.background = `linear-gradient(135deg, ${color1}, ${color2})`;
     avatar.textContent = initials;
+}
+
+function renderPixelArts() {
+    document.querySelectorAll('.pixel-art').forEach(canvas => {
+        const pixelData = canvas.dataset.pixels;
+        const width = parseInt(canvas.dataset.width) || 0;
+        const height = parseInt(canvas.dataset.height) || 0;
+
+        if (!pixelData || width <= 0 || height <= 0) return;
+
+        const ctx = canvas.getContext('2d');
+        canvas.width = width;
+        canvas.height = height;
+
+        // Разбиваем данные на массив цветов
+        const colors = pixelData.split(';').filter(c => c);
+        
+        // Отрисовываем пиксели
+        for(let i = 0; i < colors.length; i++) {
+            const x = i % width;
+            const y = Math.floor(i / width);
+            
+            // Если вышли за пределы холста - прекращаем отрисовку
+            if(y >= height) break;
+            
+            ctx.fillStyle = colors[i] || '#FFFFFF';
+            ctx.fillRect(x, y, 1, 1);
+        }
+    });
 }
 
 // Таймеры для аукционов
@@ -208,39 +249,17 @@ function updateTimers() {
             const diff = endTime - now;
             const hours = Math.floor(diff / 3600000);
             const minutes = Math.floor((diff % 3600000) / 60000);
-            timer.querySelector('.time-remaining').textContent = 
-                `${hours}ч ${minutes}м`;
+            timer.querySelector('.time-remaining').textContent = `${hours}ч ${minutes}м`;
         }
     });
 }
 
-// Отрисовка пиксель-артов
-function renderPixelArts() {
-    document.querySelectorAll('.pixel-art').forEach(canvas => {
-        const pixels = canvas.dataset.pixels?.split(';').map(row => row.split(','));
-        if (!pixels) return;
-
-        const ctx = canvas.getContext('2d');
-        const size = Math.max(pixels.length, pixels[0]?.length || 0);
-        
-        canvas.width = size;
-        canvas.height = size;
-        
-        pixels.forEach((row, y) => {
-            row.forEach((color, x) => {
-                ctx.fillStyle = color;
-                ctx.fillRect(x, y, 1, 1);
-            });
-        });
-    });
-}
-
-// Временная функция
+// Отложенное сообщение (заглушка)
 function showComingSoon() {
     alert('Этот функционал находится в разработке!');
 }
 
-// Инициализация
+// Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
     generateAvatar();
     renderPixelArts();
