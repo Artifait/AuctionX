@@ -147,9 +147,8 @@ namespace AucX.WebUI.Controllers
             }
         }
 
-        [HttpPost("auction/{id}/cancel")]
+        [HttpPost("Admin/cancel/{id}")]
         [Authorize]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelAuction(int id)
         {
             try

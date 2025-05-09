@@ -36,7 +36,7 @@ namespace AucX.WebUI.Controllers
 
             var availableBalance = await _balanceService.GetAvailableBalanceAsync(user.Id);
             var frozenBalance = await _balanceService.GetFrozenBalanceAsync(user.Id);
-            
+
             return View(new ProfileViewModel
             {
                 UserName = user.UserName!,
@@ -62,7 +62,7 @@ namespace AucX.WebUI.Controllers
                         Width = l.CanvasItem.Width,
                         Height = l.CanvasItem.Height,
                     },
-                    CurrentBid = l.Bids.Max(b => b.Amount),
+                    CurrentBid = l.Bids.Count == 0 ? 0 : l.Bids.Max(b => b.Amount),
                     MinimumPrice = l.MinimumPrice,
                     EndTime = l.EndTime
                 }).ToList()

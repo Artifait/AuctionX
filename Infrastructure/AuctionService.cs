@@ -92,7 +92,7 @@ public class AuctionService : IAuctionService
                 throw new InvalidOperationException("Bid amount is too low");
 
             var availableBalance = await _balanceService.GetAvailableBalanceAsync(userId);
-            if (availableBalance < amount)
+            if (availableBalance + (lastBid == null ? 0 : lastBid.Amount) < amount)
                 throw new InvalidOperationException("Insufficient funds");
 
             var bid = new Bid
@@ -107,14 +107,14 @@ public class AuctionService : IAuctionService
             await _context.Bids.AddAsync(bid);
             await _context.SaveChangesAsync();
 
-            // Заморозка средств
-            await _balanceService.FreezeFundsAsync(userId, amount, bid.Id);
-
             // Возврат предыдущей ставки
             if (lastBid != null)
             {
                 await _balanceService.UnfreezeFundsAsync(lastBid.UserId, lastBid.Amount, lastBid.Id);
             }
+
+            // Заморозка средств
+            await _balanceService.FreezeFundsAsync(userId, amount, bid.Id);
 
             await transaction.CommitAsync();
             return bid;

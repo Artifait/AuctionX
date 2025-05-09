@@ -26,11 +26,13 @@ public class BalanceViewComponent : ViewComponent
 
         var balance = await _balanceService.GetBalanceAsync(user.Id);
         var frozen = await _balanceService.GetFrozenBalanceAsync(user.Id);
+        var availableBalance = await _balanceService.GetAvailableBalanceAsync(user.Id);
 
         return View(new BalanceViewModel
         {
             Balance = balance,
-            FrozenBalance = frozen
+            FrozenBalance = frozen,
+            AvailableBalance = availableBalance
         });
     }
 }
@@ -39,4 +41,5 @@ public class BalanceViewModel
 {
     public decimal Balance { get; set; }
     public decimal FrozenBalance { get; set; }
+    public decimal AvailableBalance { get; set; }
 }
